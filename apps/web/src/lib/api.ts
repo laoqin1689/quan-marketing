@@ -17,11 +17,49 @@ async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-// Categories
+// ==================== Service Types ====================
+
+export interface ServiceItem {
+  id: number;
+  platform: string;
+  service_type: string;
+  quality: string;
+  region: string;
+  display_name: string;
+  description: string | null;
+  base_price_twd: number;
+  min_quantity: number;
+  max_quantity: number;
+  delivery_estimate: string;
+  has_warranty: number;
+  is_popular: number;
+  sort_order: number;
+}
+
+export interface FilterOption {
+  name: string;
+  count: number;
+}
+
+export interface AllServicesResponse {
+  categories: ServiceItem[];
+  filters: {
+    platforms: FilterOption[];
+    serviceTypes: FilterOption[];
+    qualities: FilterOption[];
+  };
+  total: number;
+}
+
+// ==================== Categories ====================
+
+export const getAllServices = () => fetchAPI<AllServicesResponse>('/api/categories/all');
+export const searchServices = (q: string) => fetchAPI<ServiceItem[]>(`/api/categories/search?q=${encodeURIComponent(q)}`);
 export const getPlatforms = () => fetchAPI<string[]>('/api/categories');
 export const getServiceTypes = (platform: string) => fetchAPI<string[]>(`/api/categories/${encodeURIComponent(platform)}`);
 export const getCategories = (platform: string, serviceType: string) =>
-  fetchAPI<any[]>(`/api/categories/${encodeURIComponent(platform)}/${encodeURIComponent(serviceType)}`);
+  fetchAPI<ServiceItem[]>(`/api/categories/${encodeURIComponent(platform)}/${encodeURIComponent(serviceType)}`);
+
 
 // Orders
 export const createOrder = (data: any) => fetchAPI<any>('/api/orders', { method: 'POST', body: JSON.stringify(data) });

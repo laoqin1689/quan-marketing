@@ -40,6 +40,9 @@ export interface Category {
   base_price_twd: number;
   min_quantity: number;
   max_quantity: number;
+  delivery_estimate: string;
+  has_warranty: number;
+  is_popular: number;
   is_active: number;
   sort_order: number;
   created_at: string;

@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_anonymous_id ON users(anonymous_id);
 
--- 產品分類表
+-- 產品分類表（662 條標準化路由 → 前台展示用）
 CREATE TABLE IF NOT EXISTS categories (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     platform        TEXT NOT NULL,       -- Instagram, Facebook, YouTube, TikTok, etc.
@@ -31,12 +31,18 @@ CREATE TABLE IF NOT EXISTS categories (
     base_price_twd  REAL NOT NULL,      -- 基礎價格 (TWD per 1000)
     min_quantity    INTEGER DEFAULT 100,
     max_quantity    INTEGER DEFAULT 100000,
+    delivery_estimate TEXT DEFAULT '0-24 小時', -- 預計交付時間
+    has_warranty    INTEGER DEFAULT 0,   -- 是否有保固
+    is_popular      INTEGER DEFAULT 0,   -- 是否為熱門推薦
     is_active       INTEGER DEFAULT 1,
     sort_order      INTEGER DEFAULT 0,
     created_at      TEXT DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_categories_platform ON categories(platform);
+CREATE INDEX IF NOT EXISTS idx_categories_service_type ON categories(service_type);
+CREATE INDEX IF NOT EXISTS idx_categories_quality ON categories(quality);
 CREATE INDEX IF NOT EXISTS idx_categories_active ON categories(is_active);
+CREATE INDEX IF NOT EXISTS idx_categories_popular ON categories(is_popular);
 
 -- 供應商表
 CREATE TABLE IF NOT EXISTS suppliers (
