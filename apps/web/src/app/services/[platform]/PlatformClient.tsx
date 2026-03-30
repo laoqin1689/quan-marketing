@@ -5,47 +5,171 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
-const platformInfo: Record<string, { name: string; icon: string; color: string; description: string }> = {
-  Instagram: { name: 'Instagram', icon: '📸', color: 'from-pink-500 to-purple-500', description: '提升你的 Instagram 影響力，從粉絲到互動全方位成長' },
-  Facebook: { name: 'Facebook', icon: '👍', color: 'from-blue-500 to-blue-600', description: '增強你的 Facebook 粉專影響力，提升品牌曝光度' },
-  YouTube: { name: 'YouTube', icon: '▶️', color: 'from-red-500 to-red-600', description: '加速你的 YouTube 頻道成長，增加訂閱與觀看' },
-  TikTok: { name: 'TikTok', icon: '🎵', color: 'from-gray-900 to-gray-800', description: '讓你的 TikTok 短影音快速爆紅' },
-  Google: { name: 'Google', icon: '⭐', color: 'from-green-500 to-blue-500', description: '提升 Google 商家評論，建立品牌信任度' },
-  Threads: { name: 'Threads', icon: '🧵', color: 'from-gray-700 to-gray-900', description: '搶先佈局 Threads 平台，快速累積粉絲' },
-  LINE: { name: 'LINE', icon: '💬', color: 'from-green-400 to-green-600', description: '增加 LINE 官方帳號好友數' },
+const platformInfo: Record<string, {
+  name: string;
+  icon: string;
+  color: string;
+  h1: string;
+  description: string;
+  seoIntro: string;
+  h2Why: string;
+  whyContent: string;
+  h2How: string;
+  howContent: string;
+  faqs: { q: string; a: string }[];
+}> = {
+  LINE: {
+    name: 'LINE',
+    icon: '💬',
+    color: 'from-green-400 to-green-600',
+    h1: 'LINE 官方帳號好友增加服務',
+    description: '快速累積 LINE OA 好友數，提升品牌曝光與行銷效益',
+    seoIntro: '全行銷提供專業的 LINE 官方帳號好友增加服務，幫助您快速累積 LINE OA 好友數。無論您是想要增加 LINE 官方帳號好友、提升品牌曝光度，還是掌握 LINE 官方帳號導流技巧，我們都能為您量身打造最適合的方案。',
+    h2Why: '為什麼需要增加 LINE 官方帳號好友？',
+    whyContent: 'LINE 是台灣最普及的通訊軟體，擁有超過 2,100 萬活躍用戶。透過增加 LINE 官方帳號好友數，您可以直接觸及目標客群、發送優惠訊息、提升回購率。LINE OA 好友數越多，品牌的行銷觸及範圍就越廣，是台灣在地品牌行銷的必備利器。',
+    h2How: '快速累積 LINE 官方帳號好友的實用方法',
+    howContent: '除了傳統的 QR Code 導流、LINE Pay 連動加好友等方式，全行銷提供更快速有效的 LINE 好友增加方案。我們的服務幫助您在短時間內大幅提升 LINE 官方帳號好友數，讓您的品牌行銷起步更快、效果更好。',
+    faqs: [
+      { q: 'LINE 官方帳號如何有效增加好友數？', a: '除了在門市放置 QR Code、透過 LINE Pay 連動加好友外，您也可以使用全行銷的 LINE 好友增加服務，快速累積好友數，搭配優質內容經營，達到最佳行銷效果。' },
+      { q: '買 LINE 好友安全嗎？', a: '全行銷提供的 LINE 好友增加服務使用安全的方式進行，不需要提供帳號密碼，不會影響您的 LINE 官方帳號正常運作。' },
+      { q: '增加 LINE 好友後可以發送訊息嗎？', a: '是的，新增的好友會出現在您的 LINE 官方帳號好友列表中，您可以正常發送群發訊息、優惠券等行銷內容。' },
+    ],
+  },
+  Facebook: {
+    name: 'Facebook',
+    icon: '👍',
+    color: 'from-blue-500 to-blue-600',
+    h1: 'Facebook 粉絲購買與粉專追蹤服務',
+    description: '快速增加 FB 粉專追蹤與人氣，提升品牌曝光度',
+    seoIntro: '全行銷提供專業的 Facebook 粉絲購買服務，幫助您快速增加 FB 粉專追蹤與人氣。無論是購買 Facebook 粉絲專頁讚與追蹤、增加臉書貼文按讚數，還是提升 FB 影片觀看次數，我們都能為您的品牌打造強大的社群影響力。',
+    h2Why: '為什麼需要增加 Facebook 粉專人氣？',
+    whyContent: 'Facebook 仍然是台灣最重要的社群行銷平台之一，擁有龐大的用戶基礎。粉絲專頁的追蹤數和互動率直接影響品牌的可信度和觸及範圍。透過增加 FB 粉絲與貼文互動，您的品牌能夠獲得更多曝光機會，吸引更多潛在客戶。',
+    h2How: '快速增加 FB 粉專人氣方法',
+    howContent: '全行銷提供多種品質方案，從經濟方案到台灣真人粉絲，滿足不同預算和需求。我們的 Facebook 粉絲購買服務穩定可靠，幫助您的粉絲專頁快速累積人氣，為品牌行銷打下堅實基礎。',
+    faqs: [
+      { q: '購買 Facebook 粉絲安全嗎？會不會被鎖帳號？', a: '我們提供多種品質方案，高品質方案使用真人帳號互動，安全性極高。在我們過往經驗中，使用標準方案以上的服務不會有帳號安全問題。' },
+      { q: 'FB 買粉絲多少錢？', a: '價格依粉絲來源與數量不同，全行銷提供多種方案，從經濟方案到台灣真人粉絲都有，可依需求彈性選擇。' },
+      { q: '買 FB 粉絲會掉嗎？', a: '高品質方案和真人精選方案都含有保固服務，在保固期內掉落會自動補充，確保您的投資有保障。' },
+    ],
+  },
+  Google: {
+    name: 'Google',
+    icon: '⭐',
+    color: 'from-green-500 to-blue-500',
+    h1: 'Google 商家評論與五星評價增加服務',
+    description: '提升 Google 地圖星級評分，建立品牌信任度',
+    seoIntro: '全行銷提供專業的 Google 地圖評論購買服務，幫助實體店家快速增加 Google 商家評論與五星評價。無論您是餐廳、診所、美容院還是零售店，透過提升 Google 地圖星級評分，都能有效建立品牌信任度、吸引更多顧客上門。',
+    h2Why: 'Google 我的商家評論提升方法',
+    whyContent: '根據統計，超過 58% 的消費者表示 Google 地圖商家五星評價越多，越容易吸引他們到店消費。Google 商家評論不僅影響消費者的第一印象，更直接影響您在 Google 地圖搜尋結果中的排名。透過增加 Google Maps 在地嚮導評論，您的商家能夠獲得更高的可見度和信任度。',
+    h2How: '買 Google 商家五星評論留言的優勢',
+    howContent: '全行銷提供買 Google 真人五星評價台灣方案，由真實帳號撰寫高品質評論內容。我們的服務能幫助您快速提升 Google 地圖星級評分，解決 Google 商家負評問題，讓您的商家在搜尋結果中脫穎而出。',
+    faqs: [
+      { q: '餐廳 Google 評論怎麼增加？', a: '除了鼓勵顧客留下評論外，您也可以使用全行銷的 Google 商家評論服務，快速增加五星好評數量，提升整體星級評分。' },
+      { q: '買 Google 真人五星評價安全嗎？', a: '我們的評論由真實帳號撰寫，包含在地嚮導帳號，內容自然且符合 Google 的評論規範，安全性高。' },
+      { q: 'Google 評論可以指定內容嗎？', a: '可以，我們提供客製化評論內容服務，您可以指定評論的方向和重點，讓評論更符合您的商家特色。' },
+    ],
+  },
+  YouTube: {
+    name: 'YouTube',
+    icon: '▶️',
+    color: 'from-red-500 to-red-600',
+    h1: 'YouTube 訂閱購買與頻道成長服務',
+    description: '快速增加 YT 訂閱與觀看，加速頻道成長',
+    seoIntro: '全行銷提供專業的 YouTube 訂閱購買與觀看次數增加服務，幫助您快速達到 YouTube 營利門檻。無論是購買 YouTube 頻道訂閱人數、增加 YT 影片觀看次數，還是提升影片按讚數，我們都能助您加速頻道成長。',
+    h2Why: '快速增加 YT 訂閱者方法',
+    whyContent: 'YouTube 營利需要達到 1,000 訂閱者和 4,000 小時觀看時數的門檻。透過全行銷的 YouTube 訂閱購買服務，您可以快速累積訂閱人數，搭配優質內容創作，更快達到營利資格。訂閱數越高，頻道的權威性和可信度也越高，有助於吸引更多自然訂閱者。',
+    h2How: '購買 YouTube 頻道訂閱人數助您達到營利門檻',
+    howContent: '全行銷提供多種 YouTube 訂閱方案，從全球訂閱到台灣真人訂閱，滿足不同需求。我們的服務穩定可靠，幫助您的頻道快速成長，為 YouTube 創作之路奠定堅實基礎。',
+    faqs: [
+      { q: 'YT 買訂閱安全嗎？', a: '我們的高品質方案使用真實帳號訂閱，不會影響您的頻道安全。建議選擇標準方案以上的服務，確保最佳效果。' },
+      { q: '買 YouTube 訂閱可以達到營利門檻嗎？', a: '可以，我們的訂閱服務能幫助您快速達到 1,000 訂閱者的門檻。搭配觀看次數服務，更能加速達成 4,000 小時觀看時數。' },
+      { q: '買 YT 訂閱會掉嗎？', a: '高品質方案含有保固服務，在保固期內掉落會自動補充。真人精選方案提供永久保固，確保您的投資有保障。' },
+    ],
+  },
+  Threads: {
+    name: 'Threads',
+    icon: '🧵',
+    color: 'from-gray-700 to-gray-900',
+    h1: 'Threads 粉絲購買與追蹤增加服務',
+    description: '搶先佈局 Threads 平台，快速累積粉絲與影響力',
+    seoIntro: '全行銷提供專業的 Threads 粉絲購買與愛心按讚服務，幫助您搶先佈局 Threads 平台。Threads 作為 Meta 推出的新社群平台，正在快速成長中，現在正是累積粉絲、建立影響力的最佳時機。',
+    h2Why: '搶先佈局 Threads 平台粉絲',
+    whyContent: 'Threads 是 Meta 推出的文字社群平台，與 Instagram 深度整合，用戶可以輕鬆從 IG 導流。在平台發展初期搶先累積粉絲，能讓您在未來獲得更大的競爭優勢。越早建立 Threads 影響力，未來的行銷效益就越高。',
+    h2How: '購買 Threads 粉絲快速累積追蹤數',
+    howContent: '全行銷提供多種 Threads 粉絲方案，包含全球粉絲、華人粉絲和台灣真人粉絲。我們的服務能幫助您在短時間內大幅提升 Threads 追蹤數，搶佔社群新平台的先機。',
+    faqs: [
+      { q: 'Threads 粉絲購買安全嗎？', a: '我們的服務不需要提供帳號密碼，只需提供 Threads 主頁網址即可。使用安全的方式增加粉絲，不會影響您的帳號安全。' },
+      { q: '買 Threads 粉絲會影響 Instagram 帳號嗎？', a: '不會，Threads 和 Instagram 雖然由同一家公司營運，但粉絲系統是獨立的。購買 Threads 粉絲不會影響您的 Instagram 帳號。' },
+      { q: 'Threads 粉絲多久開始增加？', a: '下單後系統會在 3 分鐘內自動派單，大部分服務會在 1-24 小時內開始執行，您可以即時看到粉絲數的增長。' },
+    ],
+  },
+  Instagram: {
+    name: 'Instagram',
+    icon: '📸',
+    color: 'from-pink-500 to-purple-500',
+    h1: 'Instagram 粉絲購買與互動提升服務',
+    description: '全方位提升 IG 影響力，從粉絲到互動全面成長',
+    seoIntro: '全行銷提供專業的 Instagram 粉絲購買與互動提升服務，幫助您全方位提升 IG 影響力。無論是增加 Instagram 粉絲數、提升貼文愛心與觀看次數，還是增加留言互動，我們都能為您的 IG 帳號打造強大的社群影響力。',
+    h2Why: '為什麼需要提升 Instagram 影響力？',
+    whyContent: 'Instagram 是全球最受歡迎的圖片社群平台之一，在台灣擁有超過 1,000 萬活躍用戶。IG 帳號的粉絲數和互動率直接影響品牌的可信度和商業價值。透過增加 IG 粉絲與互動，您的帳號能夠獲得更多曝光機會，吸引品牌合作和商業機會。',
+    h2How: '快速增加 IG 粉絲與互動的方法',
+    howContent: '全行銷提供從經濟方案到台灣真人粉絲的多種選擇，滿足不同預算和需求。我們的 Instagram 服務涵蓋粉絲、愛心、觀看和留言，幫助您全面提升 IG 帳號的影響力和商業價值。',
+    faqs: [
+      { q: '買 IG 粉絲會被鎖帳號嗎？', a: '我們提供多種品質方案，高品質方案使用真人帳號互動，安全性極高。建議選擇標準方案以上的服務，確保帳號安全。' },
+      { q: 'IG 買粉絲多少錢？', a: '價格依粉絲品質和數量不同，全行銷提供從經濟方案到台灣真人粉絲的多種選擇，可依需求彈性選擇。' },
+      { q: '買 IG 粉絲會掉嗎？', a: '高品質方案含有 30 天保固，真人精選和台灣真人方案提供永久保固，在保固期內掉落會自動補充。' },
+    ],
+  },
+  TikTok: {
+    name: 'TikTok',
+    icon: '🎵',
+    color: 'from-gray-900 to-gray-800',
+    h1: 'TikTok 粉絲購買與短影音人氣提升服務',
+    description: '讓你的 TikTok 短影音快速爆紅，打造高人氣帳號',
+    seoIntro: '全行銷提供專業的 TikTok 粉絲購買與觀看次數增加服務，幫助您的短影音快速爆紅。無論是增加 TikTok 粉絲數、提升影片觀看次數，還是增加愛心互動，我們都能助您打造高人氣抖音帳號。',
+    h2Why: '為什麼需要提升 TikTok 人氣？',
+    whyContent: 'TikTok 是全球成長最快的短影音平台，在台灣的用戶數持續攀升。TikTok 的演算法高度依賴互動數據，粉絲數、觀看次數和愛心數越高，影片被推薦的機會就越大。透過提升 TikTok 人氣，您的短影音能夠觸及更多觀眾。',
+    h2How: '快速提升 TikTok 短影音人氣的方法',
+    howContent: '全行銷提供多種 TikTok 服務方案，幫助您快速累積粉絲、觀看和愛心。我們的服務能有效提升 TikTok 演算法推薦機會，讓您的短影音更容易被看見。',
+    faqs: [
+      { q: '買 TikTok 粉絲安全嗎？', a: '我們的服務不需要提供帳號密碼，使用安全的方式增加粉絲，不會影響您的帳號安全。' },
+      { q: 'TikTok 買觀看可以上推薦嗎？', a: '增加觀看次數能提升影片的互動數據，有助於提升演算法推薦機會。搭配優質內容，效果更佳。' },
+      { q: '買 TikTok 粉絲會掉嗎？', a: '高品質方案含有保固服務，在保固期內掉落會自動補充，確保您的投資有保障。' },
+    ],
+  },
 };
 
 const serviceTypes: Record<string, { type: string; label: string; desc: string }[]> = {
+  LINE: [
+    { type: 'Followers', label: '好友', desc: '增加 LINE 官方帳號好友數，提升品牌行銷觸及範圍' },
+  ],
+  Facebook: [
+    { type: 'Followers', label: '粉專追蹤', desc: '增加粉絲專頁追蹤人數，提升品牌曝光度' },
+    { type: 'Likes', label: '貼文讚', desc: '增加貼文按讚數，提升觸及率與互動' },
+    { type: 'Views', label: '影片觀看', desc: '增加影片觀看次數，提升影片曝光率' },
+  ],
+  Google: [
+    { type: 'Reviews', label: '商家評論', desc: '增加 Google 商家五星評論，建立品牌信任度' },
+  ],
+  YouTube: [
+    { type: 'Followers', label: '訂閱', desc: '增加頻道訂閱人數，加速達到營利門檻' },
+    { type: 'Views', label: '觀看', desc: '增加影片觀看次數，提升演算法推薦機會' },
+    { type: 'Likes', label: '按讚', desc: '增加影片按讚數，提升影片排名權重' },
+  ],
+  Threads: [
+    { type: 'Followers', label: '粉絲', desc: '增加 Threads 粉絲數，搶先佈局新平台' },
+    { type: 'Likes', label: '愛心', desc: '增加 Threads 愛心數，提升貼文觸及率' },
+  ],
   Instagram: [
     { type: 'Followers', label: '粉絲', desc: '增加 Instagram 粉絲數，提升帳號影響力' },
     { type: 'Likes', label: '愛心', desc: '增加貼文愛心數，提升觸及率' },
     { type: 'Views', label: '觀看', desc: '增加 Reels 和影片觀看次數' },
     { type: 'Comments', label: '留言', desc: '增加貼文留言互動' },
   ],
-  Facebook: [
-    { type: 'Followers', label: '粉專追蹤', desc: '增加粉絲專頁追蹤人數' },
-    { type: 'Likes', label: '貼文讚', desc: '增加貼文按讚數' },
-    { type: 'Views', label: '影片觀看', desc: '增加影片觀看次數' },
-  ],
-  YouTube: [
-    { type: 'Followers', label: '訂閱', desc: '增加頻道訂閱人數' },
-    { type: 'Views', label: '觀看', desc: '增加影片觀看次數' },
-    { type: 'Likes', label: '按讚', desc: '增加影片按讚數' },
-  ],
   TikTok: [
     { type: 'Followers', label: '粉絲', desc: '增加 TikTok 粉絲數' },
     { type: 'Views', label: '觀看', desc: '增加短影音觀看次數' },
     { type: 'Likes', label: '愛心', desc: '增加短影音愛心數' },
-  ],
-  Google: [
-    { type: 'Reviews', label: '商家評論', desc: '增加 Google 商家五星評論' },
-  ],
-  Threads: [
-    { type: 'Followers', label: '粉絲', desc: '增加 Threads 粉絲數' },
-    { type: 'Likes', label: '愛心', desc: '增加 Threads 愛心數' },
-  ],
-  LINE: [
-    { type: 'Followers', label: '好友', desc: '增加 LINE 官方帳號好友數' },
   ],
 };
 
@@ -68,23 +192,71 @@ export default function PlatformClient() {
     );
   }
 
+  // JSON-LD structured data
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    name: info.h1,
+    description: info.seoIntro,
+    provider: {
+      '@type': 'Organization',
+      name: '全行銷',
+      url: 'https://kravdo.lol',
+    },
+    areaServed: {
+      '@type': 'Country',
+      name: 'Taiwan',
+    },
+    serviceType: '社群行銷服務',
+  };
+
+  const faqJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: info.faqs.map((faq) => ({
+      '@type': 'Question',
+      name: faq.q,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: faq.a,
+      },
+    })),
+  };
+
   return (
     <div className="min-h-screen">
       <Navbar />
+
+      {/* JSON-LD */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
 
       {/* Hero */}
       <section className={`bg-gradient-to-br ${info.color} text-white py-16`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="text-5xl mb-4">{info.icon}</div>
-          <h1 className="text-3xl md:text-5xl font-bold mb-4">{info.name} 服務</h1>
+          <h1 className="text-3xl md:text-5xl font-bold mb-4">{info.h1}</h1>
           <p className="text-white/80 text-lg max-w-2xl mx-auto">{info.description}</p>
+        </div>
+      </section>
+
+      {/* SEO Intro */}
+      <section className="py-12 bg-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-gray-600 leading-relaxed text-lg">{info.seoIntro}</p>
         </div>
       </section>
 
       {/* Service Types */}
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">選擇服務類型</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">選擇 {info.name} 服務類型</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {services.map((s) => (
               <Link
@@ -100,6 +272,40 @@ export default function PlatformClient() {
                   查看方案 →
                 </span>
               </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Why Section */}
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">{info.h2Why}</h2>
+          <p className="text-gray-600 leading-relaxed">{info.whyContent}</p>
+        </div>
+      </section>
+
+      {/* How Section */}
+      <section className="py-16">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">{info.h2How}</h2>
+          <p className="text-gray-600 leading-relaxed">{info.howContent}</p>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">{info.name} 服務常見問題</h2>
+          <div className="space-y-4">
+            {info.faqs.map((faq, i) => (
+              <details key={i} className="card group cursor-pointer">
+                <summary className="font-semibold text-gray-900 list-none flex justify-between items-center">
+                  {faq.q}
+                  <span className="text-gray-400 group-open:rotate-180 transition-transform">▾</span>
+                </summary>
+                <p className="mt-3 text-gray-600 leading-relaxed">{faq.a}</p>
+              </details>
             ))}
           </div>
         </div>

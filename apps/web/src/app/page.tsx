@@ -69,7 +69,7 @@ export default function HomePage() {
               </div>
             )}
             <h1 className="text-4xl md:text-6xl font-black leading-tight mb-6">
-              {content.headline}
+              {content.headline || '全行銷 — 您的專業社群成長引擎與品牌曝光推手'}
             </h1>
             <p className="text-lg md:text-xl text-white/80 mb-8 max-w-2xl mx-auto">
               {content.subheadline}
@@ -104,8 +104,8 @@ export default function HomePage() {
       <section id="platforms" className="py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">選擇你的平台</h2>
-            <p className="text-gray-500 max-w-2xl mx-auto">我們支援所有主流社群平台，提供多種品質方案滿足不同需求</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">選擇您的社群行銷平台</h2>
+            <p className="text-gray-500 max-w-2xl mx-auto">我們支援所有主流社群平台，提供多種品質方案滿足不同需求，幫助您快速增加粉絲、提升品牌曝光度與社群互動率。</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {platforms.map((p) => (
@@ -130,8 +130,8 @@ export default function HomePage() {
       <section className="bg-gray-900 text-white py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">簡單三步驟</h2>
-            <p className="text-gray-400">免註冊、免下載，3 分鐘完成下單</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">簡單三步驟，快速增加社群影響力</h2>
+            <p className="text-gray-400">免註冊、免下載，3 分鐘完成下單，台灣買粉絲讚自助下單平台首選</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {steps.map((s) => (
@@ -151,7 +151,7 @@ export default function HomePage() {
       <section id="faq" className="py-16 md:py-24">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">常見問題</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">社群行銷服務常見問題</h2>
           </div>
           <div className="space-y-4">
             {faqs.map((faq, i) => (
