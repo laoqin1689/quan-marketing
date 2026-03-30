@@ -2,8 +2,6 @@
 export interface Env {
   DB: D1Database;
   CACHE: KVNamespace;
-  ORDER_QUEUE: Queue;
-  CAPI_QUEUE: Queue;
   ENVIRONMENT: string;
   N8N_WEBHOOK_BASE_URL: string;
   ADMIN_USERNAME: string;
