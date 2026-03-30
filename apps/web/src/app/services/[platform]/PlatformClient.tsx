@@ -1,317 +1,588 @@
 'use client';
 
+import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import PlatformIcon from '@/components/PlatformIcon';
+import OrderModal from '@/components/OrderModal';
+import MobileCheckoutBar from '@/components/MobileCheckoutBar';
+import {
+  QUALITY_LABELS, QUALITY_ORDER, SERVICE_TYPE_LABELS, PLATFORM_DISPLAY_NAMES, PRESET_QUANTITIES,
+} from '@/lib/constants';
+import { calcTotal, formatPrice, formatPricePer1k } from '@/lib/cart';
+import type { ServiceItem } from '@/lib/api';
 
-const platformInfo: Record<string, {
-  name: string;
-  icon: string;
-  color: string;
+// ==================== SEO Content (kept for structured data) ====================
+
+const platformSEOContent: Record<string, {
   h1: string;
   description: string;
-  seoIntro: string;
-  h2Why: string;
-  whyContent: string;
-  h2How: string;
-  howContent: string;
   faqs: { q: string; a: string }[];
 }> = {
-  LINE: {
-    name: 'LINE',
-    icon: '💬',
-    color: 'from-green-400 to-green-600',
-    h1: 'LINE 官方帳號好友增加服務',
-    description: '快速累積 LINE OA 好友數，提升品牌曝光與行銷效益',
-    seoIntro: '全行銷提供專業的 LINE 官方帳號好友增加服務，幫助您快速累積 LINE OA 好友數。無論您是想要增加 LINE 官方帳號好友、提升品牌曝光度，還是掌握 LINE 官方帳號導流技巧，我們都能為您量身打造最適合的方案。',
-    h2Why: '為什麼需要增加 LINE 官方帳號好友？',
-    whyContent: 'LINE 是台灣最普及的通訊軟體，擁有超過 2,100 萬活躍用戶。透過增加 LINE 官方帳號好友數，您可以直接觸及目標客群、發送優惠訊息、提升回購率。LINE OA 好友數越多，品牌的行銷觸及範圍就越廣，是台灣在地品牌行銷的必備利器。',
-    h2How: '快速累積 LINE 官方帳號好友的實用方法',
-    howContent: '除了傳統的 QR Code 導流、LINE Pay 連動加好友等方式，全行銷提供更快速有效的 LINE 好友增加方案。我們的服務幫助您在短時間內大幅提升 LINE 官方帳號好友數，讓您的品牌行銷起步更快、效果更好。',
-    faqs: [
-      { q: 'LINE 官方帳號如何有效增加好友數？', a: '除了在門市放置 QR Code、透過 LINE Pay 連動加好友外，您也可以使用全行銷的 LINE 好友增加服務，快速累積好友數，搭配優質內容經營，達到最佳行銷效果。' },
-      { q: '買 LINE 好友安全嗎？', a: '全行銷提供的 LINE 好友增加服務使用安全的方式進行，不需要提供帳號密碼，不會影響您的 LINE 官方帳號正常運作。' },
-      { q: '增加 LINE 好友後可以發送訊息嗎？', a: '是的，新增的好友會出現在您的 LINE 官方帳號好友列表中，您可以正常發送群發訊息、優惠券等行銷內容。' },
-    ],
-  },
-  Facebook: {
-    name: 'Facebook',
-    icon: '👍',
-    color: 'from-blue-500 to-blue-600',
-    h1: 'Facebook 粉絲購買與粉專追蹤服務',
-    description: '快速增加 FB 粉專追蹤與人氣，提升品牌曝光度',
-    seoIntro: '全行銷提供專業的 Facebook 粉絲購買服務，幫助您快速增加 FB 粉專追蹤與人氣。無論是購買 Facebook 粉絲專頁讚與追蹤、增加臉書貼文按讚數，還是提升 FB 影片觀看次數，我們都能為您的品牌打造強大的社群影響力。',
-    h2Why: '為什麼需要增加 Facebook 粉專人氣？',
-    whyContent: 'Facebook 仍然是台灣最重要的社群行銷平台之一，擁有龐大的用戶基礎。粉絲專頁的追蹤數和互動率直接影響品牌的可信度和觸及範圍。透過增加 FB 粉絲與貼文互動，您的品牌能夠獲得更多曝光機會，吸引更多潛在客戶。',
-    h2How: '快速增加 FB 粉專人氣方法',
-    howContent: '全行銷提供多種品質方案，從經濟方案到台灣真人粉絲，滿足不同預算和需求。我們的 Facebook 粉絲購買服務穩定可靠，幫助您的粉絲專頁快速累積人氣，為品牌行銷打下堅實基礎。',
-    faqs: [
-      { q: '購買 Facebook 粉絲安全嗎？會不會被鎖帳號？', a: '我們提供多種品質方案，高品質方案使用真人帳號互動，安全性極高。在我們過往經驗中，使用標準方案以上的服務不會有帳號安全問題。' },
-      { q: 'FB 買粉絲多少錢？', a: '價格依粉絲來源與數量不同，全行銷提供多種方案，從經濟方案到台灣真人粉絲都有，可依需求彈性選擇。' },
-      { q: '買 FB 粉絲會掉嗎？', a: '高品質方案和真人精選方案都含有保固服務，在保固期內掉落會自動補充，確保您的投資有保障。' },
-    ],
-  },
-  Google: {
-    name: 'Google',
-    icon: '⭐',
-    color: 'from-green-500 to-blue-500',
-    h1: 'Google 商家評論與五星評價增加服務',
-    description: '提升 Google 地圖星級評分，建立品牌信任度',
-    seoIntro: '全行銷提供專業的 Google 地圖評論購買服務，幫助實體店家快速增加 Google 商家評論與五星評價。無論您是餐廳、診所、美容院還是零售店，透過提升 Google 地圖星級評分，都能有效建立品牌信任度、吸引更多顧客上門。',
-    h2Why: 'Google 我的商家評論提升方法',
-    whyContent: '根據統計，超過 58% 的消費者表示 Google 地圖商家五星評價越多，越容易吸引他們到店消費。Google 商家評論不僅影響消費者的第一印象，更直接影響您在 Google 地圖搜尋結果中的排名。透過增加 Google Maps 在地嚮導評論，您的商家能夠獲得更高的可見度和信任度。',
-    h2How: '買 Google 商家五星評論留言的優勢',
-    howContent: '全行銷提供買 Google 真人五星評價台灣方案，由真實帳號撰寫高品質評論內容。我們的服務能幫助您快速提升 Google 地圖星級評分，解決 Google 商家負評問題，讓您的商家在搜尋結果中脫穎而出。',
-    faqs: [
-      { q: '餐廳 Google 評論怎麼增加？', a: '除了鼓勵顧客留下評論外，您也可以使用全行銷的 Google 商家評論服務，快速增加五星好評數量，提升整體星級評分。' },
-      { q: '買 Google 真人五星評價安全嗎？', a: '我們的評論由真實帳號撰寫，包含在地嚮導帳號，內容自然且符合 Google 的評論規範，安全性高。' },
-      { q: 'Google 評論可以指定內容嗎？', a: '可以，我們提供客製化評論內容服務，您可以指定評論的方向和重點，讓評論更符合您的商家特色。' },
-    ],
-  },
-  YouTube: {
-    name: 'YouTube',
-    icon: '▶️',
-    color: 'from-red-500 to-red-600',
-    h1: 'YouTube 訂閱購買與頻道成長服務',
-    description: '快速增加 YT 訂閱與觀看，加速頻道成長',
-    seoIntro: '全行銷提供專業的 YouTube 訂閱購買與觀看次數增加服務，幫助您快速達到 YouTube 營利門檻。無論是購買 YouTube 頻道訂閱人數、增加 YT 影片觀看次數，還是提升影片按讚數，我們都能助您加速頻道成長。',
-    h2Why: '快速增加 YT 訂閱者方法',
-    whyContent: 'YouTube 營利需要達到 1,000 訂閱者和 4,000 小時觀看時數的門檻。透過全行銷的 YouTube 訂閱購買服務，您可以快速累積訂閱人數，搭配優質內容創作，更快達到營利資格。訂閱數越高，頻道的權威性和可信度也越高，有助於吸引更多自然訂閱者。',
-    h2How: '購買 YouTube 頻道訂閱人數助您達到營利門檻',
-    howContent: '全行銷提供多種 YouTube 訂閱方案，從全球訂閱到台灣真人訂閱，滿足不同需求。我們的服務穩定可靠，幫助您的頻道快速成長，為 YouTube 創作之路奠定堅實基礎。',
-    faqs: [
-      { q: 'YT 買訂閱安全嗎？', a: '我們的高品質方案使用真實帳號訂閱，不會影響您的頻道安全。建議選擇標準方案以上的服務，確保最佳效果。' },
-      { q: '買 YouTube 訂閱可以達到營利門檻嗎？', a: '可以，我們的訂閱服務能幫助您快速達到 1,000 訂閱者的門檻。搭配觀看次數服務，更能加速達成 4,000 小時觀看時數。' },
-      { q: '買 YT 訂閱會掉嗎？', a: '高品質方案含有保固服務，在保固期內掉落會自動補充。真人精選方案提供永久保固，確保您的投資有保障。' },
-    ],
-  },
-  Threads: {
-    name: 'Threads',
-    icon: '🧵',
-    color: 'from-gray-700 to-gray-900',
-    h1: 'Threads 粉絲購買與追蹤增加服務',
-    description: '搶先佈局 Threads 平台，快速累積粉絲與影響力',
-    seoIntro: '全行銷提供專業的 Threads 粉絲購買與愛心按讚服務，幫助您搶先佈局 Threads 平台。Threads 作為 Meta 推出的新社群平台，正在快速成長中，現在正是累積粉絲、建立影響力的最佳時機。',
-    h2Why: '搶先佈局 Threads 平台粉絲',
-    whyContent: 'Threads 是 Meta 推出的文字社群平台，與 Instagram 深度整合，用戶可以輕鬆從 IG 導流。在平台發展初期搶先累積粉絲，能讓您在未來獲得更大的競爭優勢。越早建立 Threads 影響力，未來的行銷效益就越高。',
-    h2How: '購買 Threads 粉絲快速累積追蹤數',
-    howContent: '全行銷提供多種 Threads 粉絲方案，包含全球粉絲、華人粉絲和台灣真人粉絲。我們的服務能幫助您在短時間內大幅提升 Threads 追蹤數，搶佔社群新平台的先機。',
-    faqs: [
-      { q: 'Threads 粉絲購買安全嗎？', a: '我們的服務不需要提供帳號密碼，只需提供 Threads 主頁網址即可。使用安全的方式增加粉絲，不會影響您的帳號安全。' },
-      { q: '買 Threads 粉絲會影響 Instagram 帳號嗎？', a: '不會，Threads 和 Instagram 雖然由同一家公司營運，但粉絲系統是獨立的。購買 Threads 粉絲不會影響您的 Instagram 帳號。' },
-      { q: 'Threads 粉絲多久開始增加？', a: '下單後系統會在 3 分鐘內自動派單，大部分服務會在 1-24 小時內開始執行，您可以即時看到粉絲數的增長。' },
-    ],
-  },
   Instagram: {
-    name: 'Instagram',
-    icon: '📸',
-    color: 'from-pink-500 to-purple-500',
     h1: 'Instagram 粉絲購買與互動提升服務',
-    description: '全方位提升 IG 影響力，從粉絲到互動全面成長',
-    seoIntro: '全行銷提供專業的 Instagram 粉絲購買與互動提升服務，幫助您全方位提升 IG 影響力。無論是增加 Instagram 粉絲數、提升貼文愛心與觀看次數，還是增加留言互動，我們都能為您的 IG 帳號打造強大的社群影響力。',
-    h2Why: '為什麼需要提升 Instagram 影響力？',
-    whyContent: 'Instagram 是全球最受歡迎的圖片社群平台之一，在台灣擁有超過 1,000 萬活躍用戶。IG 帳號的粉絲數和互動率直接影響品牌的可信度和商業價值。透過增加 IG 粉絲與互動，您的帳號能夠獲得更多曝光機會，吸引品牌合作和商業機會。',
-    h2How: '快速增加 IG 粉絲與互動的方法',
-    howContent: '全行銷提供從經濟方案到台灣真人粉絲的多種選擇，滿足不同預算和需求。我們的 Instagram 服務涵蓋粉絲、愛心、觀看和留言，幫助您全面提升 IG 帳號的影響力和商業價值。',
+    description: '全方位提升 IG 影響力，從粉絲到互動全面成長。全行銷提供專業的 Instagram 粉絲購買與互動提升服務。',
     faqs: [
       { q: '買 IG 粉絲會被鎖帳號嗎？', a: '我們提供多種品質方案，高品質方案使用真人帳號互動，安全性極高。建議選擇標準方案以上的服務，確保帳號安全。' },
       { q: 'IG 買粉絲多少錢？', a: '價格依粉絲品質和數量不同，全行銷提供從經濟方案到台灣真人粉絲的多種選擇，可依需求彈性選擇。' },
       { q: '買 IG 粉絲會掉嗎？', a: '高品質方案含有 30 天保固，真人精選和台灣真人方案提供永久保固，在保固期內掉落會自動補充。' },
     ],
   },
-  TikTok: {
-    name: 'TikTok',
-    icon: '🎵',
-    color: 'from-gray-900 to-gray-800',
-    h1: 'TikTok 粉絲購買與短影音人氣提升服務',
-    description: '讓你的 TikTok 短影音快速爆紅，打造高人氣帳號',
-    seoIntro: '全行銷提供專業的 TikTok 粉絲購買與觀看次數增加服務，幫助您的短影音快速爆紅。無論是增加 TikTok 粉絲數、提升影片觀看次數，還是增加愛心互動，我們都能助您打造高人氣抖音帳號。',
-    h2Why: '為什麼需要提升 TikTok 人氣？',
-    whyContent: 'TikTok 是全球成長最快的短影音平台，在台灣的用戶數持續攀升。TikTok 的演算法高度依賴互動數據，粉絲數、觀看次數和愛心數越高，影片被推薦的機會就越大。透過提升 TikTok 人氣，您的短影音能夠觸及更多觀眾。',
-    h2How: '快速提升 TikTok 短影音人氣的方法',
-    howContent: '全行銷提供多種 TikTok 服務方案，幫助您快速累積粉絲、觀看和愛心。我們的服務能有效提升 TikTok 演算法推薦機會，讓您的短影音更容易被看見。',
+  Facebook: {
+    h1: 'Facebook 粉絲購買與粉專追蹤服務',
+    description: '快速增加 FB 粉專追蹤與人氣，提升品牌曝光度。全行銷提供專業的 Facebook 粉絲購買服務。',
     faqs: [
-      { q: '買 TikTok 粉絲安全嗎？', a: '我們的服務不需要提供帳號密碼，使用安全的方式增加粉絲，不會影響您的帳號安全。' },
-      { q: 'TikTok 買觀看可以上推薦嗎？', a: '增加觀看次數能提升影片的互動數據，有助於提升演算法推薦機會。搭配優質內容，效果更佳。' },
-      { q: '買 TikTok 粉絲會掉嗎？', a: '高品質方案含有保固服務，在保固期內掉落會自動補充，確保您的投資有保障。' },
+      { q: '購買 Facebook 粉絲安全嗎？', a: '我們提供多種品質方案，高品質方案使用真人帳號互動，安全性極高。' },
+      { q: 'FB 買粉絲多少錢？', a: '價格依粉絲來源與數量不同，全行銷提供多種方案，從經濟方案到台灣真人粉絲都有。' },
+      { q: '買 FB 粉絲會掉嗎？', a: '高品質方案和真人精選方案都含有保固服務，在保固期內掉落會自動補充。' },
+    ],
+  },
+  YouTube: {
+    h1: 'YouTube 訂閱購買與頻道成長服務',
+    description: '快速增加 YT 訂閱與觀看，加速頻道成長。全行銷提供專業的 YouTube 訂閱購買與觀看次數增加服務。',
+    faqs: [
+      { q: 'YT 買訂閱安全嗎？', a: '我們的高品質方案使用真實帳號訂閱，不會影響您的頻道安全。' },
+      { q: '買 YouTube 訂閱可以達到營利門檻嗎？', a: '可以，我們的訂閱服務能幫助您快速達到 1,000 訂閱者的門檻。' },
+      { q: '買 YT 訂閱會掉嗎？', a: '高品質方案含有保固服務，真人精選方案提供永久保固。' },
+    ],
+  },
+  TikTok: {
+    h1: 'TikTok 粉絲購買與短影音人氣提升服務',
+    description: '讓你的 TikTok 短影音快速爆紅，打造高人氣帳號。',
+    faqs: [
+      { q: '買 TikTok 粉絲安全嗎？', a: '我們的服務不需要提供帳號密碼，使用安全的方式增加粉絲。' },
+      { q: 'TikTok 買觀看可以上推薦嗎？', a: '增加觀看次數能提升影片的互動數據，有助於提升演算法推薦機會。' },
+    ],
+  },
+  Google: {
+    h1: 'Google 商家評論與五星評價增加服務',
+    description: '提升 Google 地圖星級評分，建立品牌信任度。',
+    faqs: [
+      { q: '餐廳 Google 評論怎麼增加？', a: '使用全行銷的 Google 商家評論服務，快速增加五星好評數量，提升整體星級評分。' },
+      { q: '買 Google 真人五星評價安全嗎？', a: '我們的評論由真實帳號撰寫，內容自然且符合 Google 的評論規範。' },
+    ],
+  },
+  Threads: {
+    h1: 'Threads 粉絲購買與追蹤增加服務',
+    description: '搶先佈局 Threads 平台，快速累積粉絲與影響力。',
+    faqs: [
+      { q: 'Threads 粉絲購買安全嗎？', a: '我們的服務不需要提供帳號密碼，只需提供 Threads 主頁網址即可。' },
+      { q: '買 Threads 粉絲會影響 Instagram 帳號嗎？', a: '不會，Threads 和 Instagram 的粉絲系統是獨立的。' },
+    ],
+  },
+  LINE: {
+    h1: 'LINE 官方帳號好友增加服務',
+    description: '快速累積 LINE OA 好友數，提升品牌曝光與行銷效益。',
+    faqs: [
+      { q: 'LINE 官方帳號如何有效增加好友數？', a: '使用全行銷的 LINE 好友增加服務，快速累積好友數，搭配優質內容經營。' },
+      { q: '買 LINE 好友安全嗎？', a: '全行銷提供的 LINE 好友增加服務使用安全的方式進行，不需要提供帳號密碼。' },
     ],
   },
 };
 
-const serviceTypes: Record<string, { type: string; label: string; desc: string }[]> = {
-  LINE: [
-    { type: 'Followers', label: '好友', desc: '增加 LINE 官方帳號好友數，提升品牌行銷觸及範圍' },
-  ],
-  Facebook: [
-    { type: 'Followers', label: '粉專追蹤', desc: '增加粉絲專頁追蹤人數，提升品牌曝光度' },
-    { type: 'Likes', label: '貼文讚', desc: '增加貼文按讚數，提升觸及率與互動' },
-    { type: 'Views', label: '影片觀看', desc: '增加影片觀看次數，提升影片曝光率' },
-  ],
-  Google: [
-    { type: 'Reviews', label: '商家評論', desc: '增加 Google 商家五星評論，建立品牌信任度' },
-  ],
-  YouTube: [
-    { type: 'Followers', label: '訂閱', desc: '增加頻道訂閱人數，加速達到營利門檻' },
-    { type: 'Views', label: '觀看', desc: '增加影片觀看次數，提升演算法推薦機會' },
-    { type: 'Likes', label: '按讚', desc: '增加影片按讚數，提升影片排名權重' },
-  ],
-  Threads: [
-    { type: 'Followers', label: '粉絲', desc: '增加 Threads 粉絲數，搶先佈局新平台' },
-    { type: 'Likes', label: '愛心', desc: '增加 Threads 愛心數，提升貼文觸及率' },
-  ],
-  Instagram: [
-    { type: 'Followers', label: '粉絲', desc: '增加 Instagram 粉絲數，提升帳號影響力' },
-    { type: 'Likes', label: '愛心', desc: '增加貼文愛心數，提升觸及率' },
-    { type: 'Views', label: '觀看', desc: '增加 Reels 和影片觀看次數' },
-    { type: 'Comments', label: '留言', desc: '增加貼文留言互動' },
-  ],
-  TikTok: [
-    { type: 'Followers', label: '粉絲', desc: '增加 TikTok 粉絲數' },
-    { type: 'Views', label: '觀看', desc: '增加短影音觀看次數' },
-    { type: 'Likes', label: '愛心', desc: '增加短影音愛心數' },
-  ],
-};
+// ==================== Component ====================
 
 export default function PlatformClient() {
   const params = useParams();
   const platform = decodeURIComponent(params.platform as string);
-  const info = platformInfo[platform];
-  const services = serviceTypes[platform] || [];
 
-  if (!info) {
-    return (
-      <div className="min-h-screen">
-        <Navbar />
-        <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-          <h1 className="text-2xl font-bold text-gray-900">平台不存在</h1>
-          <Link href="/" className="text-primary-600 mt-4 inline-block">返回首頁</Link>
-        </div>
-        <Footer />
-      </div>
-    );
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [selectedQuality, setSelectedQuality] = useState<string | null>(null);
+  const [showQualityInfo, setShowQualityInfo] = useState(false);
+  const [customQty, setCustomQty] = useState('');
+  const [showCustom, setShowCustom] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  // Modal state
+  const [modalService, setModalService] = useState<ServiceItem | null>(null);
+  const [modalQuantity, setModalQuantity] = useState(0);
+  const [cartRefreshKey, setCartRefreshKey] = useState(0);
+
+  // Fetch services for this platform
+  useEffect(() => {
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://quan-marketing-api.laoqin1689.workers.dev';
+    fetch(`${API_BASE}/api/categories/all`)
+      .then(res => res.json())
+      .then(data => {
+        const all: ServiceItem[] = data.categories || [];
+        const platformServices = all.filter(s => s.platform === platform);
+        setServices(platformServices);
+
+        // Auto-select first service type
+        if (platformServices.length > 0) {
+          const types = getServiceTypes(platformServices);
+          if (types.length > 0) setSelectedType(types[0].name);
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [platform]);
+
+  function getServiceTypes(svcs: ServiceItem[]) {
+    const typeMap = new Map<string, number>();
+    for (const s of svcs) {
+      typeMap.set(s.service_type, (typeMap.get(s.service_type) || 0) + 1);
+    }
+    return Array.from(typeMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
   }
 
-  // JSON-LD structured data
-  const jsonLd = {
+  const serviceTypes = useMemo(() => getServiceTypes(services), [services]);
+
+  // Available qualities for selected type
+  const availableQualities = useMemo(() => {
+    if (!selectedType) return [];
+    const filtered = services.filter(s => s.service_type === selectedType);
+    const qSet = new Set(filtered.map(s => s.quality));
+    return QUALITY_ORDER.filter(q => qSet.has(q));
+  }, [services, selectedType]);
+
+  // Auto-select quality when type changes
+  useEffect(() => {
+    if (availableQualities.length > 0) {
+      if (availableQualities.includes('Standard')) {
+        setSelectedQuality('Standard');
+      } else {
+        setSelectedQuality(availableQualities[0]);
+      }
+    } else {
+      setSelectedQuality(null);
+    }
+    setShowCustom(false);
+    setCustomQty('');
+  }, [availableQualities, selectedType]);
+
+  // Current service (matching type + quality, prefer Global region)
+  const currentService = useMemo(() => {
+    if (!selectedType || !selectedQuality) return null;
+    const matches = services.filter(
+      s => s.service_type === selectedType && s.quality === selectedQuality
+    );
+    return matches.find(s => s.region === 'Global') || matches[0] || null;
+  }, [services, selectedType, selectedQuality]);
+
+  // Regional variants
+  const regionalVariants = useMemo(() => {
+    if (!selectedType || !selectedQuality) return [];
+    return services.filter(
+      s => s.service_type === selectedType && s.quality === selectedQuality && s.region !== 'Global'
+    );
+  }, [services, selectedType, selectedQuality]);
+
+  // Generate preset packages
+  const presetPackages = useMemo(() => {
+    if (!currentService) return [];
+    const min = currentService.min_quantity;
+    const max = currentService.max_quantity;
+
+    let quantities = PRESET_QUANTITIES.filter(q => q >= min && q <= max);
+
+    if (quantities.length === 0) {
+      quantities = [min];
+      let q = min;
+      const multipliers = [2, 5, 10, 25, 50, 100];
+      for (const m of multipliers) {
+        const next = min * m;
+        if (next <= max && quantities.length < 6) {
+          quantities.push(next);
+        }
+      }
+      if (!quantities.includes(max) && quantities.length < 7) {
+        quantities.push(max);
+      }
+    }
+
+    quantities = Array.from(new Set(quantities)).sort((a, b) => a - b).slice(0, 7);
+
+    return quantities.map((qty, i) => {
+      const total = calcTotal(currentService.base_price_twd, qty);
+      let tag = '';
+      if (quantities.length >= 3 && i === Math.floor(quantities.length / 2)) tag = '最暢銷';
+      if (quantities.length >= 4 && i === quantities.length - 1) tag = '最划算';
+
+      return { quantity: qty, total, tag };
+    });
+  }, [currentService]);
+
+  const handlePackageClick = (qty: number) => {
+    if (!currentService) return;
+    setModalService(currentService);
+    setModalQuantity(qty);
+  };
+
+  const handleCustomOrder = () => {
+    if (!currentService) return;
+    const qty = parseInt(customQty);
+    if (!qty || qty < currentService.min_quantity || qty > currentService.max_quantity) return;
+    setModalService(currentService);
+    setModalQuantity(qty);
+  };
+
+  const displayName = PLATFORM_DISPLAY_NAMES[platform] || platform;
+  const seoContent = platformSEOContent[platform];
+
+  // JSON-LD
+  const jsonLd = seoContent ? {
     '@context': 'https://schema.org',
     '@type': 'Service',
-    name: info.h1,
-    description: info.seoIntro,
-    provider: {
-      '@type': 'Organization',
-      name: '全行銷',
-      url: 'https://kravdo.lol',
-    },
-    areaServed: {
-      '@type': 'Country',
-      name: 'Taiwan',
-    },
+    name: seoContent.h1,
+    description: seoContent.description,
+    provider: { '@type': 'Organization', name: '全行銷', url: 'https://kravdo.lol' },
+    areaServed: { '@type': 'Country', name: 'Taiwan' },
     serviceType: '社群行銷服務',
-  };
+  } : null;
 
-  const faqJsonLd = {
+  const faqJsonLd = seoContent?.faqs ? {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    mainEntity: info.faqs.map((faq) => ({
+    mainEntity: seoContent.faqs.map(faq => ({
       '@type': 'Question',
       name: faq.q,
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: faq.a,
-      },
+      acceptedAnswer: { '@type': 'Answer', text: faq.a },
     })),
-  };
+  } : null;
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
 
       {/* JSON-LD */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
+      {jsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      )}
+      {faqJsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      )}
 
-      {/* Hero */}
-      <section className={`bg-gradient-to-br ${info.color} text-white py-16`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="text-5xl mb-4">{info.icon}</div>
-          <h1 className="text-3xl md:text-5xl font-bold mb-4">{info.h1}</h1>
-          <p className="text-white/80 text-lg max-w-2xl mx-auto">{info.description}</p>
+      {/* Breadcrumb */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <nav className="flex items-center gap-2 text-sm text-gray-500">
+            <Link href="/" className="hover:text-primary-600 transition-colors">首頁</Link>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="text-gray-900 font-medium">{displayName} 服務</span>
+          </nav>
         </div>
-      </section>
+      </div>
 
-      {/* SEO Intro */}
-      <section className="py-12 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-gray-600 leading-relaxed text-lg">{info.seoIntro}</p>
+      {/* Platform Header */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center gap-4">
+            <PlatformIcon platform={platform} size="xl" />
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{displayName} 服務</h1>
+              <p className="text-sm text-gray-500 mt-1">
+                共 {services.length} 項服務可選 — 選擇服務類型和品質方案，挑選適合你的套餐
+              </p>
+            </div>
+          </div>
         </div>
-      </section>
+      </div>
 
-      {/* Service Types */}
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">選擇 {info.name} 服務類型</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            {services.map((s) => (
-              <Link
-                key={s.type}
-                href={`/services/${platform}/${s.type}/`}
-                className="card group hover:scale-[1.02] text-center"
-              >
-                <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">
-                  {s.label}
-                </h3>
-                <p className="text-gray-500 text-sm mb-4">{s.desc}</p>
-                <span className="text-primary-600 text-sm font-medium">
-                  查看方案 →
+      {loading ? (
+        <div className="text-center py-20">
+          <div className="inline-flex items-center gap-3 text-gray-500">
+            <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            載入服務中...
+          </div>
+        </div>
+      ) : services.length === 0 ? (
+        <div className="text-center py-20">
+          <p className="text-gray-500 mb-4">找不到此平台的服務</p>
+          <Link href="/" className="text-primary-600 font-medium hover:underline">返回首頁</Link>
+        </div>
+      ) : (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+          {/* ==================== Service Type Tabs ==================== */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+              {serviceTypes.map(t => (
+                <button
+                  key={t.name}
+                  onClick={() => setSelectedType(t.name)}
+                  className={`shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
+                    selectedType === t.name
+                      ? 'bg-primary-600 text-white shadow-md'
+                      : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300 hover:text-primary-600'
+                  }`}
+                >
+                  {SERVICE_TYPE_LABELS[t.name] || t.name}
+                  <span className="ml-1.5 text-xs opacity-70">{t.count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ==================== Quality Switcher ==================== */}
+          {availableQualities.length > 0 && (
+            <div className="mb-6">
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-sm font-medium text-gray-700 shrink-0">品質方案：</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {availableQualities.map(q => {
+                    const info = QUALITY_LABELS[q] || { label: q, color: 'text-gray-600', bg: 'bg-gray-100', border: 'border-gray-200' };
+                    return (
+                      <button
+                        key={q}
+                        onClick={() => setSelectedQuality(q)}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                          selectedQuality === q
+                            ? `${info.bg} ${info.color} ring-2 ring-current/30 shadow-sm`
+                            : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        {info.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => setShowQualityInfo(!showQualityInfo)}
+                  className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1 shrink-0"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  各版本有什麼不同？
+                </button>
+              </div>
+
+              {/* Quality Info Panel */}
+              {showQualityInfo && (
+                <div className="mt-4 bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="p-4">
+                    <h4 className="font-semibold text-gray-900 mb-3">品質方案說明</h4>
+                    <div className="space-y-3">
+                      {availableQualities.map(q => {
+                        const info = QUALITY_LABELS[q] || { label: q, desc: '', bg: 'bg-gray-100', color: 'text-gray-600' };
+                        return (
+                          <div key={q} className="flex items-start gap-3">
+                            <span className={`shrink-0 mt-0.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${info.bg} ${info.color}`}>
+                              {info.label}
+                            </span>
+                            <p className="text-sm text-gray-600 leading-relaxed">{info.desc}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ==================== Current Service Info ==================== */}
+          {currentService && (
+            <div className="mb-6 flex items-center gap-4 flex-wrap text-sm text-gray-500">
+              <span className="flex items-center gap-1.5">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                預計交付：{currentService.delivery_estimate || '1-24 小時'}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                每千單位 {formatPricePer1k(currentService.base_price_twd)}
+              </span>
+              {currentService.has_warranty === 1 && (
+                <span className="flex items-center gap-1.5 text-green-600">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  含保固服務
                 </span>
-              </Link>
-            ))}
+              )}
+            </div>
+          )}
+
+          {/* ==================== Preset Package Grid ==================== */}
+          {presetPackages.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
+              {presetPackages.map((pkg) => (
+                <button
+                  key={pkg.quantity}
+                  onClick={() => handlePackageClick(pkg.quantity)}
+                  className="group relative bg-white rounded-2xl border border-gray-100 p-4 md:p-5 text-left hover:border-primary-300 hover:shadow-lg transition-all duration-200"
+                >
+                  {pkg.tag && (
+                    <span className={`absolute -top-2 left-4 px-2.5 py-0.5 text-[10px] font-bold rounded-full text-white ${
+                      pkg.tag === '最暢銷' ? 'bg-rose-500' : 'bg-green-500'
+                    }`}>
+                      {pkg.tag}
+                    </span>
+                  )}
+                  <p className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">
+                    {pkg.quantity >= 10000 ? `${(pkg.quantity / 1000).toFixed(0)}K` : pkg.quantity.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-400 mb-3">
+                    {SERVICE_TYPE_LABELS[selectedType || ''] || selectedType}
+                  </p>
+                  <p className="text-lg font-bold text-primary-600 group-hover:text-primary-700">
+                    {formatPrice(pkg.total)}
+                  </p>
+                </button>
+              ))}
+
+              {/* Custom Quantity Card */}
+              <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-4 md:p-5 flex flex-col justify-center">
+                {!showCustom ? (
+                  <button
+                    onClick={() => setShowCustom(true)}
+                    className="text-center text-gray-500 hover:text-primary-600 transition-colors w-full"
+                  >
+                    <svg className="w-8 h-8 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    <p className="text-sm font-medium">自訂數量</p>
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      type="number"
+                      value={customQty}
+                      onChange={(e) => setCustomQty(e.target.value)}
+                      placeholder={`${currentService?.min_quantity || 10} ~ ${currentService?.max_quantity?.toLocaleString() || '100,000'}`}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 outline-none"
+                      min={currentService?.min_quantity}
+                      max={currentService?.max_quantity}
+                      autoFocus
+                    />
+                    {customQty && currentService && parseInt(customQty) >= currentService.min_quantity && (
+                      <p className="text-sm font-bold text-primary-600 text-center">
+                        {formatPrice(calcTotal(currentService.base_price_twd, parseInt(customQty) || 0))}
+                      </p>
+                    )}
+                    <button
+                      onClick={handleCustomOrder}
+                      disabled={!customQty || !currentService || parseInt(customQty) < (currentService?.min_quantity || 0) || parseInt(customQty) > (currentService?.max_quantity || Infinity)}
+                      className="w-full py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      選擇
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ==================== Regional Variants ==================== */}
+          {regionalVariants.length > 0 && (
+            <div className="mb-8">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                地區專屬方案
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {regionalVariants.map(variant => {
+                  const regionLabel = variant.region === 'TW' ? '🇹🇼 台灣' : variant.region === 'Targeted' ? '🎯 指定地區' : variant.region;
+                  return (
+                    <button
+                      key={variant.id}
+                      onClick={() => {
+                        setModalService(variant);
+                        setModalQuantity(variant.min_quantity);
+                      }}
+                      className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 hover:border-primary-200 hover:shadow-md transition-all text-left"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                            variant.region === 'TW' ? 'bg-red-50 text-red-600' : 'bg-sky-50 text-sky-600'
+                          }`}>
+                            {regionLabel}
+                          </span>
+                          {variant.has_warranty === 1 && (
+                            <span className="text-[10px] text-green-600 font-medium">含保固</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 truncate max-w-[200px]">{variant.display_name}</p>
+                      </div>
+                      <div className="text-right shrink-0 ml-4">
+                        <p className="font-bold text-primary-600">{formatPricePer1k(variant.base_price_twd)}</p>
+                        <p className="text-[10px] text-gray-400">/ 千</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ==================== Other Service Types ==================== */}
+          {serviceTypes.length > 1 && (
+            <div className="mt-8 pt-8 border-t border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                {displayName} 其他服務
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {serviceTypes.filter(t => t.name !== selectedType).map(t => (
+                  <button
+                    key={t.name}
+                    onClick={() => { setSelectedType(t.name); window.scrollTo({ top: 200, behavior: 'smooth' }); }}
+                    className="px-4 py-2 bg-white rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:border-primary-300 hover:text-primary-600 transition-all"
+                  >
+                    {SERVICE_TYPE_LABELS[t.name] || t.name}
+                    <span className="ml-1 text-xs text-gray-400">{t.count}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ==================== FAQ Section ==================== */}
+      {seoContent?.faqs && seoContent.faqs.length > 0 && (
+        <section className="py-12 bg-white border-t border-gray-100">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-6 text-center">{displayName} 常見問題</h2>
+            <div className="space-y-3">
+              {seoContent.faqs.map((faq, i) => (
+                <details key={i} className="bg-gray-50 rounded-xl group">
+                  <summary className="font-medium text-gray-900 list-none flex justify-between items-center cursor-pointer px-5 py-4 hover:bg-gray-100 rounded-xl transition-colors">
+                    {faq.q}
+                    <span className="text-gray-400 group-open:rotate-180 transition-transform ml-4 shrink-0">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </span>
+                  </summary>
+                  <p className="px-5 pb-4 text-gray-600 text-sm leading-relaxed">{faq.a}</p>
+                </details>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
-
-      {/* Why Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">{info.h2Why}</h2>
-          <p className="text-gray-600 leading-relaxed">{info.whyContent}</p>
-        </div>
-      </section>
-
-      {/* How Section */}
-      <section className="py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">{info.h2How}</h2>
-          <p className="text-gray-600 leading-relaxed">{info.howContent}</p>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">{info.name} 服務常見問題</h2>
-          <div className="space-y-4">
-            {info.faqs.map((faq, i) => (
-              <details key={i} className="card group cursor-pointer">
-                <summary className="font-semibold text-gray-900 list-none flex justify-between items-center">
-                  {faq.q}
-                  <span className="text-gray-400 group-open:rotate-180 transition-transform">▾</span>
-                </summary>
-                <p className="mt-3 text-gray-600 leading-relaxed">{faq.a}</p>
-              </details>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <Footer />
+
+      {/* Order Modal */}
+      {modalService && (
+        <OrderModal
+          service={modalService}
+          quantity={modalQuantity}
+          onClose={() => setModalService(null)}
+          onCartUpdate={() => setCartRefreshKey(k => k + 1)}
+        />
+      )}
+
+      <MobileCheckoutBar refreshKey={cartRefreshKey} />
     </div>
   );
 }

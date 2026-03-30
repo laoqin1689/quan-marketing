@@ -1,6 +1,5 @@
 'use client';
 
-// SVG-based platform icons for clean rendering
 const PLATFORM_ICONS: Record<string, { bg: string; label: string }> = {
   'Instagram': { bg: 'from-pink-500 to-purple-600', label: 'IG' },
   'Facebook': { bg: 'from-blue-600 to-blue-700', label: 'FB' },
@@ -20,11 +19,9 @@ const PLATFORM_ICONS: Record<string, { bg: string; label: string }> = {
   'Crypto/NFT': { bg: 'from-orange-400 to-yellow-500', label: 'CR' },
   'SoundCloud': { bg: 'from-orange-500 to-orange-600', label: 'SC' },
   'Quora': { bg: 'from-red-600 to-red-700', label: 'Qu' },
-  '小紅書': { bg: 'from-red-500 to-red-600', label: 'XH' },
   'Xiaohongshu': { bg: 'from-red-500 to-red-600', label: 'XH' },
   'Shopee': { bg: 'from-orange-500 to-red-500', label: 'SH' },
   'Reddit': { bg: 'from-orange-500 to-orange-600', label: 'RD' },
-  '台灣論壇': { bg: 'from-teal-500 to-teal-600', label: 'TF' },
   'Taiwan Forums': { bg: 'from-teal-500 to-teal-600', label: 'TF' },
   'Clubhouse': { bg: 'from-yellow-600 to-amber-600', label: 'CH' },
   'Pinterest': { bg: 'from-red-500 to-red-600', label: 'Pi' },
@@ -36,27 +33,27 @@ const PLATFORM_ICONS: Record<string, { bg: string; label: string }> = {
   'Shazam': { bg: 'from-blue-500 to-blue-600', label: 'SZ' },
   'Deezer': { bg: 'from-purple-600 to-purple-700', label: 'DZ' },
   'Other': { bg: 'from-gray-400 to-gray-500', label: '...' },
-  '其他': { bg: 'from-gray-400 to-gray-500', label: '...' },
 };
 
 interface PlatformIconProps {
   platform: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
 
 export default function PlatformIcon({ platform, size = 'md', className = '' }: PlatformIconProps) {
   const info = PLATFORM_ICONS[platform] || { bg: 'from-gray-400 to-gray-500', label: platform.slice(0, 2) };
-  
+
   const sizeClasses = {
-    sm: 'w-6 h-6 text-[10px]',
-    md: 'w-8 h-8 text-xs',
-    lg: 'w-10 h-10 text-sm',
+    sm: 'w-6 h-6 text-[10px] rounded-md',
+    md: 'w-8 h-8 text-xs rounded-lg',
+    lg: 'w-10 h-10 text-sm rounded-lg',
+    xl: 'w-14 h-14 text-lg rounded-xl',
   };
 
   return (
     <div
-      className={`bg-gradient-to-br ${info.bg} rounded-lg flex items-center justify-center text-white font-bold shrink-0 ${sizeClasses[size]} ${className}`}
+      className={`bg-gradient-to-br ${info.bg} flex items-center justify-center text-white font-bold shrink-0 ${sizeClasses[size]} ${className}`}
       title={platform}
     >
       {info.label}

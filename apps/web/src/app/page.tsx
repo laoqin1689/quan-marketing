@@ -1,20 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import ServiceCatalog from '@/components/ServiceCatalog';
+import PlatformIcon from '@/components/PlatformIcon';
+import OrderModal from '@/components/OrderModal';
+import MobileCheckoutBar from '@/components/MobileCheckoutBar';
 import { getAnonymousId, getUTMParams, getLandingContent, getRefCode } from '@/lib/tracking';
+import { SERVICE_TYPE_LABELS, QUALITY_LABELS, HOT_DEALS, PLATFORM_DISPLAY_NAMES } from '@/lib/constants';
+import { calcTotal, formatPrice } from '@/lib/cart';
 import type { ServiceItem, FilterOption } from '@/lib/api';
 
-// ==================== Static Data for SSG ====================
-
-// We embed all 662 services as static JSON at build time via generateStaticParams
-// For now, we fetch from API on client side with fallback
+// ==================== Static Data ====================
 
 const stats = [
-  { label: '服務項目', value: '662+' },
+  { label: '服務項目', value: '722+' },
   { label: '支援平台', value: '32' },
   { label: '自動派單', value: '3 分鐘' },
   { label: '品質方案', value: '5 種' },
@@ -28,18 +29,18 @@ const steps = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
       </svg>
     ),
-    title: '瀏覽選擇',
-    desc: '在下方目錄篩選平台和服務類型，找到你需要的方案',
+    title: '選擇平台',
+    desc: '點選你要推廣的社群平台，進入專屬服務頁面',
   },
   {
     step: '2',
     icon: (
       <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
       </svg>
     ),
-    title: '填寫下單',
-    desc: '輸入社群連結和數量，加入購物車後直接結帳',
+    title: '選套餐下單',
+    desc: '挑選數量和品質方案，填入帳號連結就能下單',
   },
   {
     step: '3',
@@ -63,20 +64,23 @@ const faqs = [
   { q: '經濟版和精選真人有什麼差別？', a: '經濟版價格最低，適合預算有限的用戶；精選真人使用 100% 真人活躍帳號，品質最高且含永久保固。建議根據需求選擇。' },
 ];
 
+// ==================== Component ====================
+
 export default function HomePage() {
   const [services, setServices] = useState<ServiceItem[]>([]);
-  const [filterData, setFilterData] = useState<{
-    platforms: FilterOption[];
-    serviceTypes: FilterOption[];
-    qualities: FilterOption[];
-  }>({ platforms: [], serviceTypes: [], qualities: [] });
+  const [platforms, setPlatforms] = useState<FilterOption[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [showAllPlatforms, setShowAllPlatforms] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<ServiceItem[]>([]);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [promoCode, setPromoCode] = useState<string | undefined>();
   const [content, setContent] = useState(getLandingContent(null));
+  const [cartRefreshKey, setCartRefreshKey] = useState(0);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    // Initialize tracking
     getAnonymousId();
     const utm = getUTMParams();
     getRefCode();
@@ -84,21 +88,70 @@ export default function HomePage() {
     setContent(landingContent);
     setPromoCode(landingContent.promoCode);
 
-    // Fetch all services
     const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://quan-marketing-api.laoqin1689.workers.dev';
     fetch(`${API_BASE}/api/categories/all`)
       .then(res => res.json())
       .then(data => {
         setServices(data.categories || []);
-        setFilterData(data.filters || { platforms: [], serviceTypes: [], qualities: [] });
+        const sortedPlatforms = [...(data.filters?.platforms || [])].sort((a: FilterOption, b: FilterOption) => b.count - a.count);
+        setPlatforms(sortedPlatforms);
         setLoading(false);
       })
-      .catch(err => {
-        console.error('Failed to load services:', err);
-        setError('載入服務失敗，請重新整理頁面');
-        setLoading(false);
-      });
+      .catch(() => setLoading(false));
   }, []);
+
+  // Close search dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSearchDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Search handler with debounce
+  const handleSearch = useCallback((q: string) => {
+    setSearchQuery(q);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    if (q.trim().length < 1) {
+      setSearchResults([]);
+      setShowSearchDropdown(false);
+      return;
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      const lower = q.toLowerCase();
+      const results = services.filter(s =>
+        s.display_name.toLowerCase().includes(lower) ||
+        s.platform.toLowerCase().includes(lower) ||
+        s.service_type.toLowerCase().includes(lower) ||
+        (s.description && s.description.toLowerCase().includes(lower))
+      ).slice(0, 8);
+      setSearchResults(results);
+      setShowSearchDropdown(true);
+    }, 200);
+  }, [services]);
+
+  // Hot deals with real service data
+  const hotDeals = useMemo(() => {
+    return HOT_DEALS.map(deal => {
+      const match = services.find(s =>
+        s.platform === deal.platform &&
+        s.service_type === deal.serviceType &&
+        s.quality === deal.quality &&
+        s.region === 'Global'
+      );
+      if (!match) return null;
+      const total = calcTotal(match.base_price_twd, deal.quantity);
+      return { ...deal, service: match, total };
+    }).filter(Boolean) as (typeof HOT_DEALS[0] & { service: ServiceItem; total: number })[];
+  }, [services]);
+
+  // Platforms to show
+  const visiblePlatforms = showAllPlatforms ? platforms : platforms.slice(0, 12);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -107,7 +160,7 @@ export default function HomePage() {
       {/* ==================== Hero Section ==================== */}
       <section className="relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary-700 to-accent-700 text-white">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/5 via-transparent to-transparent"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
           <div className="text-center max-w-3xl mx-auto">
             {promoCode && (
               <div className="inline-flex items-center bg-white/10 backdrop-blur-sm rounded-full px-4 py-1.5 mb-5 text-sm">
@@ -116,26 +169,71 @@ export default function HomePage() {
               </div>
             )}
             <h1 className="text-3xl md:text-5xl font-black leading-tight mb-4">
-              全行銷 — 社群成長一站搞定
+              社群成長，一站搞定
             </h1>
-            <p className="text-base md:text-lg text-white/80 mb-6 max-w-2xl mx-auto">
-              32 個平台、662 項服務，從粉絲、按讚到觀看、留言，一頁瀏覽全部方案。
+            <p className="text-base md:text-lg text-white/80 mb-8 max-w-2xl mx-auto">
+              32 個平台、722 項服務。選平台、挑套餐、填連結，三步完成下單。
               <br className="hidden sm:block" />
               免註冊、支援新台幣、3 分鐘自動派單。
             </p>
-            <a
-              href="#services"
-              className="inline-flex items-center gap-2 bg-white text-primary-700 font-bold py-3 px-8 rounded-xl hover:bg-gray-100 transition-all text-base shadow-lg"
-            >
-              瀏覽所有服務
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+
+            {/* Search Box */}
+            <div ref={searchRef} className="relative max-w-xl mx-auto">
+              <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-            </a>
+              <input
+                type="text"
+                placeholder="搜尋服務... 例如：IG 粉絲、YouTube 觀看、Google 評論"
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                onFocus={() => searchQuery.trim() && searchResults.length > 0 && setShowSearchDropdown(true)}
+                className="w-full pl-12 pr-4 py-4 rounded-2xl border-0 bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-white/50 outline-none text-sm shadow-lg"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => { setSearchQuery(''); setSearchResults([]); setShowSearchDropdown(false); }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+
+              {/* Search Dropdown */}
+              {showSearchDropdown && searchResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50">
+                  {searchResults.map(s => {
+                    const qi = QUALITY_LABELS[s.quality] || { label: s.quality, bg: 'bg-gray-100', color: 'text-gray-600' };
+                    return (
+                      <Link
+                        key={s.id}
+                        href={`/services/${encodeURIComponent(s.platform)}/`}
+                        onClick={() => setShowSearchDropdown(false)}
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0"
+                      >
+                        <PlatformIcon platform={s.platform} size="sm" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{s.display_name}</p>
+                          <p className="text-xs text-gray-400">
+                            {SERVICE_TYPE_LABELS[s.service_type] || s.service_type}
+                            <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] ${qi.bg} ${qi.color}`}>{qi.label}</span>
+                          </p>
+                        </div>
+                        <span className="text-sm font-semibold text-primary-600 shrink-0">
+                          {formatPrice(s.base_price_twd)}/千
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Stats */}
-          <div className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto">
+          <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-2xl mx-auto">
             {stats.map(stat => (
               <div key={stat.label} className="text-center bg-white/10 backdrop-blur-sm rounded-xl py-3 px-4">
                 <div className="text-xl md:text-2xl font-bold">{stat.value}</div>
@@ -165,50 +263,109 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ==================== Service Catalog (Main Section) ==================== */}
-      <section id="services" className="py-8 md:py-12">
+      {/* ==================== Platform Grid (Core Change) ==================== */}
+      <section id="platforms" className="py-10 md:py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">全部服務目錄</h2>
-            <p className="text-gray-500 text-sm">選擇平台和服務類型，直接在卡片上填寫數量下單</p>
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">選擇你的平台</h2>
+            <p className="text-gray-500 text-sm">點擊平台圖標，查看所有可用服務和套餐方案</p>
           </div>
 
           {loading ? (
-            <div className="text-center py-20">
+            <div className="text-center py-16">
               <div className="inline-flex items-center gap-3 text-gray-500">
                 <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                載入服務中...
+                載入中...
               </div>
             </div>
-          ) : error ? (
-            <div className="text-center py-20">
-              <p className="text-red-500 mb-4">{error}</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="btn-primary"
-              >
-                重新載入
-              </button>
-            </div>
           ) : (
-            <ServiceCatalog categories={services} filters={filterData} />
+            <>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 md:gap-4">
+                {visiblePlatforms.map(p => (
+                  <Link
+                    key={p.name}
+                    href={`/services/${encodeURIComponent(p.name)}/`}
+                    className="group flex flex-col items-center gap-2 p-4 md:p-5 bg-white rounded-2xl border border-gray-100 hover:border-primary-200 hover:shadow-lg transition-all duration-200"
+                  >
+                    <PlatformIcon platform={p.name} size="xl" className="group-hover:scale-110 transition-transform" />
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
+                        {PLATFORM_DISPLAY_NAMES[p.name] || p.name}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">{p.count} 項服務</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+
+              {platforms.length > 12 && (
+                <div className="text-center mt-6">
+                  <button
+                    onClick={() => setShowAllPlatforms(!showAllPlatforms)}
+                    className="inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors"
+                  >
+                    {showAllPlatforms ? '收起' : `查看全部 ${platforms.length} 個平台`}
+                    <svg className={`w-4 h-4 transition-transform ${showAllPlatforms ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
 
+      {/* ==================== Hot Deals (Quick Conversion) ==================== */}
+      {hotDeals.length > 0 && (
+        <section className="py-10 md:py-14 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">熱門推薦套餐</h2>
+              <p className="text-gray-500 text-sm">最多人購買的方案，點擊直接下單</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {hotDeals.map((deal, i) => (
+                <Link
+                  key={i}
+                  href={`/services/${encodeURIComponent(deal.platform)}/`}
+                  className="group relative flex items-center gap-4 p-5 bg-gray-50 rounded-2xl border border-gray-100 hover:border-primary-200 hover:shadow-lg hover:bg-white transition-all duration-200"
+                >
+                  {deal.tag && (
+                    <span className="absolute top-3 right-3 px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">
+                      {deal.tag}
+                    </span>
+                  )}
+                  <PlatformIcon platform={deal.platform} size="lg" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">{deal.label}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{deal.service.delivery_estimate}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-lg font-bold text-primary-600">{formatPrice(deal.total)}</p>
+                    <p className="text-[10px] text-gray-400">起</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ==================== FAQ ==================== */}
-      <section id="faq" className="py-12 md:py-16 bg-white">
+      <section id="faq" className="py-12 md:py-16 bg-gray-50">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">常見問題</h2>
           </div>
           <div className="space-y-3">
             {faqs.map((faq, i) => (
-              <details key={i} className="bg-gray-50 rounded-xl group">
-                <summary className="font-medium text-gray-900 list-none flex justify-between items-center cursor-pointer px-5 py-4 hover:bg-gray-100 rounded-xl transition-colors">
+              <details key={i} className="bg-white rounded-xl group">
+                <summary className="font-medium text-gray-900 list-none flex justify-between items-center cursor-pointer px-5 py-4 hover:bg-gray-50 rounded-xl transition-colors">
                   {faq.q}
                   <span className="text-gray-400 group-open:rotate-180 transition-transform ml-4 shrink-0">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -229,7 +386,7 @@ export default function HomePage() {
           <h2 className="text-2xl md:text-3xl font-bold mb-3">準備好提升你的社群影響力了嗎？</h2>
           <p className="text-white/80 mb-6">免註冊、支援新台幣、3 分鐘自動派單</p>
           <a
-            href="#services"
+            href="#platforms"
             className="inline-block bg-white text-primary-600 font-bold py-3 px-8 rounded-xl hover:bg-gray-100 transition-colors"
           >
             立即開始選購
@@ -238,6 +395,7 @@ export default function HomePage() {
       </section>
 
       <Footer />
+      <MobileCheckoutBar refreshKey={cartRefreshKey} />
     </div>
   );
 }
