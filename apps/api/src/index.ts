@@ -15,7 +15,7 @@ const app = new Hono<{ Bindings: Env }>();
 // Global middleware
 app.use('*', logger());
 app.use('*', cors({
-  origin: ['https://quan-marketing.pages.dev', 'http://localhost:3000'],
+  origin: ['https://kravdo.lol', 'https://www.kravdo.lol', 'https://quan-marketing.pages.dev', 'http://localhost:3000'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowHeaders: ['Content-Type', 'Authorization', 'X-Anonymous-ID'],
   credentials: true,
