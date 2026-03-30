@@ -1,0 +1,284 @@
+{
+  "name": "全行銷 - 供應商故障轉移下單",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "order-paid",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook: 訂單已付款",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 解析訂單資料，為每個 item 準備供應商路由\nconst input = $input.first().json;\nconst items = input.items || [];\n\n// 返回每個 item 作為獨立項目處理\nreturn items.map(item => ({\n  json: {\n    order_id: input.order_id,\n    order_number: input.order_number,\n    item_id: item.item_id,\n    category_id: item.category_id,\n    service_name: item.service_name,\n    quantity: item.quantity,\n    social_account: input.social_account,\n    social_platform: input.social_platform,\n    user_email: input.user_email,\n    current_priority: 1,\n    max_retries: 3\n  }\n}));"
+      },
+      "id": "parse-items",
+      "name": "解析訂單項目",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.API_BASE_URL}}/api/admin/supplier-routes?category_id={{$json.category_id}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-routes",
+      "name": "取得供應商路由",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "admin-auth",
+          "name": "Admin API Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 根據 priority 排序路由，選擇當前優先級的供應商\nconst item = $('解析訂單項目').first().json;\nconst routes = $input.first().json;\nconst currentPriority = item.current_priority;\n\n// 找到當前優先級的路由\nconst route = Array.isArray(routes) \n  ? routes.find(r => r.priority === currentPriority)\n  : null;\n\nif (!route) {\n  return [{ json: { ...item, has_route: false, error: `無可用供應商 (priority=${currentPriority})` } }];\n}\n\nreturn [{ json: {\n  ...item,\n  has_route: true,\n  supplier_id: route.supplier_id,\n  supplier_name: route.supplier_name,\n  supplier_service_id: route.supplier_service_id,\n  supplier_api_url: route.api_url || '',\n  supplier_api_key: route.api_key || '',\n  cost_per_1k: route.cost_per_1k\n}}];"
+      },
+      "id": "select-supplier",
+      "name": "選擇供應商",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.has_route}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-route",
+      "name": "有可用路由？",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.supplier_api_url}}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "key", "value": "={{$json.supplier_api_key}}" },
+            { "name": "action", "value": "add" },
+            { "name": "service", "value": "={{$json.supplier_service_id}}" },
+            { "name": "link", "value": "={{$json.social_account}}" },
+            { "name": "quantity", "value": "={{$json.quantity}}" }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "call-supplier",
+      "name": "呼叫供應商 API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// 檢查供應商回應\nconst response = $input.first().json;\nconst item = $('選擇供應商').first().json;\n\n// 供應商 API 通常返回 { order: 12345 } 或 { error: 'xxx' }\nconst hasError = response.error || !response.order;\n\nreturn [{ json: {\n  ...item,\n  supplier_response: response,\n  supplier_order_id: response.order ? String(response.order) : null,\n  supplier_success: !hasError,\n  supplier_error: response.error || null\n}}];"
+      },
+      "id": "check-response",
+      "name": "檢查供應商回應",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.supplier_success}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-success",
+      "name": "下單成功？",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1540, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.API_BASE_URL}}/api/webhooks/n8n/order-status",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "order_item_id", "value": "={{$json.item_id}}" },
+            { "name": "supplier_order_id", "value": "={{$json.supplier_order_id}}" },
+            { "name": "supplier_id", "value": "={{$json.supplier_id}}" },
+            { "name": "status", "value": "processing" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-success",
+      "name": "更新訂單狀態（成功）",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 故障轉移：增加 priority 嘗試下一個供應商\nconst item = $input.first().json;\nconst nextPriority = item.current_priority + 1;\n\nif (nextPriority > item.max_retries) {\n  // 所有供應商都失敗\n  return [{ json: { ...item, all_failed: true, current_priority: nextPriority } }];\n}\n\nreturn [{ json: { ...item, current_priority: nextPriority, all_failed: false } }];"
+      },
+      "id": "failover",
+      "name": "故障轉移（下一供應商）",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1760, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.all_failed}}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "id": "check-failover",
+      "name": "還有備選供應商？",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1980, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@quan-marketing.com",
+        "toEmail": "={{$env.ADMIN_EMAIL}}",
+        "subject": "⚠️ 訂單供應商全部失敗 - {{$json.order_number}}",
+        "text": "訂單 {{$json.order_number}} 的項目 {{$json.service_name}} 所有供應商都下單失敗。\n\n訂單ID: {{$json.order_id}}\n項目ID: {{$json.item_id}}\n數量: {{$json.quantity}}\n\n請手動處理。"
+      },
+      "id": "alert-admin",
+      "name": "通知管理員（全部失敗）",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [2200, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.API_BASE_URL}}/api/webhooks/n8n/order-status",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "order_item_id", "value": "={{$json.item_id}}" },
+            { "name": "supplier_order_id", "value": "" },
+            { "name": "supplier_id", "value": "0" },
+            { "name": "status", "value": "failed" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-failed",
+      "name": "更新訂單狀態（失敗）",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2200, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true, \"message\": \"Order processing started\"}"
+      },
+      "id": "respond",
+      "name": "回應 Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 500]
+    }
+  ],
+  "connections": {
+    "Webhook: 訂單已付款": {
+      "main": [
+        [
+          { "node": "解析訂單項目", "type": "main", "index": 0 },
+          { "node": "回應 Webhook", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "解析訂單項目": {
+      "main": [
+        [{ "node": "取得供應商路由", "type": "main", "index": 0 }]
+      ]
+    },
+    "取得供應商路由": {
+      "main": [
+        [{ "node": "選擇供應商", "type": "main", "index": 0 }]
+      ]
+    },
+    "選擇供應商": {
+      "main": [
+        [{ "node": "有可用路由？", "type": "main", "index": 0 }]
+      ]
+    },
+    "有可用路由？": {
+      "main": [
+        [{ "node": "呼叫供應商 API", "type": "main", "index": 0 }],
+        [{ "node": "通知管理員（全部失敗）", "type": "main", "index": 0 }]
+      ]
+    },
+    "呼叫供應商 API": {
+      "main": [
+        [{ "node": "檢查供應商回應", "type": "main", "index": 0 }]
+      ]
+    },
+    "檢查供應商回應": {
+      "main": [
+        [{ "node": "下單成功？", "type": "main", "index": 0 }]
+      ]
+    },
+    "下單成功？": {
+      "main": [
+        [{ "node": "更新訂單狀態（成功）", "type": "main", "index": 0 }],
+        [{ "node": "故障轉移（下一供應商）", "type": "main", "index": 0 }]
+      ]
+    },
+    "故障轉移（下一供應商）": {
+      "main": [
+        [{ "node": "還有備選供應商？", "type": "main", "index": 0 }]
+      ]
+    },
+    "還有備選供應商？": {
+      "main": [
+        [{ "node": "取得供應商路由", "type": "main", "index": 0 }],
+        [{ "node": "通知管理員（全部失敗）", "type": "main", "index": 0 }, { "node": "更新訂單狀態（失敗）", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "全行銷" },
+    { "name": "供應商" },
+    { "name": "故障轉移" }
+  ]
+}

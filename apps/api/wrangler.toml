@@ -1,0 +1,38 @@
+name = "quan-marketing-api"
+main = "src/index.ts"
+compatibility_date = "2024-05-29"
+
+# Cloudflare D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "quan-marketing-db"
+database_id = "YOUR_D1_DATABASE_ID"
+
+# Cloudflare KV Namespace (cache)
+[[kv_namespaces]]
+binding = "CACHE"
+id = "YOUR_KV_NAMESPACE_ID"
+
+# Cloudflare Queues (for supplier orders, CAPI, etc.)
+[[queues.producers]]
+binding = "ORDER_QUEUE"
+queue = "quan-order-queue"
+
+[[queues.producers]]
+binding = "CAPI_QUEUE"
+queue = "quan-capi-queue"
+
+[[queues.consumers]]
+queue = "quan-order-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+
+[[queues.consumers]]
+queue = "quan-capi-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+
+[vars]
+ENVIRONMENT = "production"
+N8N_WEBHOOK_BASE_URL = ""
+ADMIN_USERNAME = "admin"

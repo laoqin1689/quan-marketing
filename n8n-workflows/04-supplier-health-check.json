@@ -1,0 +1,216 @@
+{
+  "name": "全行銷 - 供應商健康檢查",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "minutes", "minutesInterval": 30 }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "每 30 分鐘檢查",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.API_BASE_URL}}/api/admin/suppliers",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-suppliers",
+      "name": "取得供應商列表",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "admin-auth",
+          "name": "Admin API Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 將供應商列表拆分為獨立項目\nconst suppliers = $input.first().json;\nif (!Array.isArray(suppliers)) return [];\nreturn suppliers.filter(s => s.is_active).map(s => ({ json: s }));"
+      },
+      "id": "split-suppliers",
+      "name": "拆分供應商",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.api_url}}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "key", "value": "={{$json.api_key}}" },
+            { "name": "action", "value": "balance" }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "ping-supplier",
+      "name": "Ping 供應商 API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// 分析健康檢查結果\nconst supplier = $('拆分供應商').first().json;\nconst response = $input.first().json;\n\nconst isHealthy = !response.error && (response.balance !== undefined || response.status);\nconst balance = response.balance || null;\n\nreturn [{ json: {\n  supplier_id: supplier.id,\n  supplier_name: supplier.name,\n  is_healthy: isHealthy,\n  balance: balance,\n  response_error: response.error || null,\n  checked_at: new Date().toISOString()\n}}];"
+      },
+      "id": "analyze-health",
+      "name": "分析健康狀態",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.is_healthy}}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "id": "check-unhealthy",
+      "name": "不健康？",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@quan-marketing.com",
+        "toEmail": "={{$env.ADMIN_EMAIL}}",
+        "subject": "🚨 供應商異常 - {{$json.supplier_name}}",
+        "text": "供應商健康檢查異常！\n\n供應商：{{$json.supplier_name}} (ID: {{$json.supplier_id}})\n錯誤：{{$json.response_error}}\n檢查時間：{{$json.checked_at}}\n\n請立即檢查供應商狀態，必要時手動停用該供應商。\n\n管理後台：https://quan-marketing.pages.dev/admin/suppliers/"
+      },
+      "id": "alert-unhealthy",
+      "name": "通知管理員（異常）",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1320, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 記錄健康的供應商（可選：更新餘額）\nconst item = $input.first().json;\nconsole.log(`✅ ${item.supplier_name} 健康，餘額: ${item.balance}`);\nreturn [{ json: item }];"
+      },
+      "id": "log-healthy",
+      "name": "記錄健康狀態",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 低餘額檢查\nconst item = $input.first().json;\nif (item.balance !== null && item.balance < 10) {\n  return [{ json: { ...item, low_balance: true } }];\n}\nreturn [{ json: { ...item, low_balance: false } }];"
+      },
+      "id": "check-balance",
+      "name": "檢查餘額",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.low_balance}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-low-balance",
+      "name": "餘額過低？",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1760, 400]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@quan-marketing.com",
+        "toEmail": "={{$env.ADMIN_EMAIL}}",
+        "subject": "⚠️ 供應商餘額不足 - {{$json.supplier_name}}",
+        "text": "供應商餘額即將用盡！\n\n供應商：{{$json.supplier_name}} (ID: {{$json.supplier_id}})\n當前餘額：${{$json.balance}}\n\n請盡快充值以避免訂單處理中斷。"
+      },
+      "id": "alert-low-balance",
+      "name": "通知餘額不足",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1980, 350]
+    }
+  ],
+  "connections": {
+    "每 30 分鐘檢查": {
+      "main": [
+        [{ "node": "取得供應商列表", "type": "main", "index": 0 }]
+      ]
+    },
+    "取得供應商列表": {
+      "main": [
+        [{ "node": "拆分供應商", "type": "main", "index": 0 }]
+      ]
+    },
+    "拆分供應商": {
+      "main": [
+        [{ "node": "Ping 供應商 API", "type": "main", "index": 0 }]
+      ]
+    },
+    "Ping 供應商 API": {
+      "main": [
+        [{ "node": "分析健康狀態", "type": "main", "index": 0 }]
+      ]
+    },
+    "分析健康狀態": {
+      "main": [
+        [{ "node": "不健康？", "type": "main", "index": 0 }]
+      ]
+    },
+    "不健康？": {
+      "main": [
+        [{ "node": "通知管理員（異常）", "type": "main", "index": 0 }],
+        [{ "node": "記錄健康狀態", "type": "main", "index": 0 }]
+      ]
+    },
+    "記錄健康狀態": {
+      "main": [
+        [{ "node": "檢查餘額", "type": "main", "index": 0 }]
+      ]
+    },
+    "檢查餘額": {
+      "main": [
+        [{ "node": "餘額過低？", "type": "main", "index": 0 }]
+      ]
+    },
+    "餘額過低？": {
+      "main": [
+        [{ "node": "通知餘額不足", "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "全行銷" },
+    { "name": "供應商" },
+    { "name": "健康檢查" }
+  ]
+}

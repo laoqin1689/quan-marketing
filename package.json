@@ -1,0 +1,17 @@
+{
+  "name": "quan-marketing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "全行銷 SMM Panel - 社群行銷服務平台",
+  "scripts": {
+    "dev:web": "pnpm --filter @quan/web dev",
+    "dev:api": "pnpm --filter @quan/api dev",
+    "build:web": "pnpm --filter @quan/web build",
+    "build:api": "pnpm --filter @quan/api build",
+    "deploy:api": "pnpm --filter @quan/api deploy",
+    "db:migrate": "pnpm --filter @quan/api db:migrate"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

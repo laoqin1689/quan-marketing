@@ -1,0 +1,183 @@
+{
+  "name": "全行銷 - 棄單提醒流程",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "minutes", "minutesInterval": 15 }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "每 15 分鐘檢查",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.API_BASE_URL}}/api/admin/dashboard/abandoned",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-abandoned",
+      "name": "取得棄單列表",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "admin-auth",
+          "name": "Admin API Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 分類棄單：30分鐘 vs 24小時\nconst data = $input.first().json;\nconst recent = data.recent || [];\nconst now = Date.now();\n\nconst thirtyMinOrders = [];\nconst twentyFourHourOrders = [];\n\nfor (const order of recent) {\n  const createdAt = new Date(order.created_at).getTime();\n  const ageMinutes = (now - createdAt) / 60000;\n  \n  if (ageMinutes >= 30 && ageMinutes < 60) {\n    // 30分鐘棄單 → 發提醒 Email\n    thirtyMinOrders.push(order);\n  } else if (ageMinutes >= 1440 && ageMinutes < 1500) {\n    // 24小時棄單 → 發折扣碼\n    twentyFourHourOrders.push(order);\n  }\n}\n\nreturn [{ json: { thirtyMinOrders, twentyFourHourOrders } }];"
+      },
+      "id": "classify-abandoned",
+      "name": "分類棄單時間",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 處理 30 分鐘棄單提醒\nconst data = $input.first().json;\nreturn data.thirtyMinOrders.map(order => ({ json: order }));"
+      },
+      "id": "split-30min",
+      "name": "拆分 30 分鐘棄單",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 處理 24 小時棄單折扣碼\nconst data = $input.first().json;\nreturn data.twentyFourHourOrders.map(order => ({ json: order }));"
+      },
+      "id": "split-24hr",
+      "name": "拆分 24 小時棄單",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 400]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@quan-marketing.com",
+        "toEmail": "={{$json.email}}",
+        "subject": "你的訂單還在等你！ - 全行銷",
+        "html": "<div style=\"font-family: 'Noto Sans TC', sans-serif; max-width: 600px; margin: 0 auto;\">\n  <div style=\"background: linear-gradient(135deg, #2563eb, #c026d3); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;\">\n    <h1 style=\"color: white; margin: 0;\">全行銷</h1>\n  </div>\n  <div style=\"padding: 30px; background: white;\">\n    <h2>你的訂單還在等你！</h2>\n    <p>我們注意到你剛剛在全行銷選購了服務，但還沒完成付款。</p>\n    <p><strong>訂單編號：</strong>{{$json.order_number}}</p>\n    <p><strong>金額：</strong>NT${{$json.total_amount}}</p>\n    <p>趕快回來完成訂單吧！你的社群成長計畫正等著你。</p>\n    <div style=\"text-align: center; margin: 30px 0;\">\n      <a href=\"https://quan-marketing.pages.dev/order-status/{{$json.order_number}}/\" style=\"background: #2563eb; color: white; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: bold;\">完成訂單</a>\n    </div>\n  </div>\n  <div style=\"padding: 20px; text-align: center; color: #999; font-size: 12px;\">\n    <p>全行銷 — 你的社群成長引擎</p>\n  </div>\n</div>"
+      },
+      "id": "send-reminder",
+      "name": "發送提醒 Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [880, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 為 24 小時棄單生成專屬折扣碼\nconst order = $input.first().json;\nconst discountCode = 'SAVE' + Math.random().toString(36).substring(2, 8).toUpperCase();\n\nreturn [{ json: { ...order, discount_code: discountCode, discount_percent: 15 } }];"
+      },
+      "id": "generate-coupon",
+      "name": "生成專屬折扣碼",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.API_BASE_URL}}/api/admin/coupons",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "code", "value": "={{$json.discount_code}}" },
+            { "name": "discount_type", "value": "percentage" },
+            { "name": "discount_value", "value": "={{$json.discount_percent}}" },
+            { "name": "min_order_amount", "value": "0" },
+            { "name": "max_uses", "value": "1" },
+            { "name": "valid_until", "value": "={{new Date(Date.now() + 72*3600000).toISOString().slice(0,10)}}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "create-coupon-api",
+      "name": "建立優惠碼",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 400],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "admin-auth",
+          "name": "Admin API Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@quan-marketing.com",
+        "toEmail": "={{$json.email}}",
+        "subject": "專屬 {{$json.discount_percent}}% 折扣碼送給你！ - 全行銷",
+        "html": "<div style=\"font-family: 'Noto Sans TC', sans-serif; max-width: 600px; margin: 0 auto;\">\n  <div style=\"background: linear-gradient(135deg, #2563eb, #c026d3); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;\">\n    <h1 style=\"color: white; margin: 0;\">全行銷</h1>\n  </div>\n  <div style=\"padding: 30px; background: white;\">\n    <h2>我們想念你！</h2>\n    <p>你之前在全行銷選購了服務，但還沒完成付款。</p>\n    <p>為了感謝你的關注，我們送你一個專屬折扣碼：</p>\n    <div style=\"text-align: center; margin: 20px 0; padding: 20px; background: #f0f9ff; border-radius: 12px;\">\n      <div style=\"font-size: 32px; font-weight: bold; color: #2563eb; letter-spacing: 4px;\">{{$json.discount_code}}</div>\n      <div style=\"color: #666; margin-top: 8px;\">{{$json.discount_percent}}% 折扣，72 小時內有效</div>\n    </div>\n    <div style=\"text-align: center; margin: 30px 0;\">\n      <a href=\"https://quan-marketing.pages.dev/\" style=\"background: #2563eb; color: white; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: bold;\">立即使用折扣碼</a>\n    </div>\n  </div>\n  <div style=\"padding: 20px; text-align: center; color: #999; font-size: 12px;\">\n    <p>全行銷 — 你的社群成長引擎</p>\n  </div>\n</div>"
+      },
+      "id": "send-discount",
+      "name": "發送折扣碼 Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1320, 400]
+    }
+  ],
+  "connections": {
+    "每 15 分鐘檢查": {
+      "main": [
+        [{ "node": "取得棄單列表", "type": "main", "index": 0 }]
+      ]
+    },
+    "取得棄單列表": {
+      "main": [
+        [{ "node": "分類棄單時間", "type": "main", "index": 0 }]
+      ]
+    },
+    "分類棄單時間": {
+      "main": [
+        [
+          { "node": "拆分 30 分鐘棄單", "type": "main", "index": 0 },
+          { "node": "拆分 24 小時棄單", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "拆分 30 分鐘棄單": {
+      "main": [
+        [{ "node": "發送提醒 Email", "type": "main", "index": 0 }]
+      ]
+    },
+    "拆分 24 小時棄單": {
+      "main": [
+        [{ "node": "生成專屬折扣碼", "type": "main", "index": 0 }]
+      ]
+    },
+    "生成專屬折扣碼": {
+      "main": [
+        [{ "node": "建立優惠碼", "type": "main", "index": 0 }]
+      ]
+    },
+    "建立優惠碼": {
+      "main": [
+        [{ "node": "發送折扣碼 Email", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "全行銷" },
+    { "name": "棄單" },
+    { "name": "Email" }
+  ]
+}
