@@ -327,42 +327,34 @@ export default function PlatformClient() {
           {/* ==================== Quality Switcher ==================== */}
           {availableQualities.length > 0 && (
             <div className="mb-6">
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-2">
                 <span className="text-sm font-medium text-gray-700">選擇品質方案</span>
                 <span className="text-xs text-gray-400">（不確定？選「標準版」就對了）</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {availableQualities.map(q => {
-                  const info = QUALITY_LABELS[q] || { label: q, color: 'text-gray-600', bg: 'bg-gray-100', border: 'border-gray-200', shortDesc: '', icon: '' };
-                  const isSelected = selectedQuality === q;
-                  const isRecommended = q === 'Standard';
+              <div className="flex items-center gap-3 flex-wrap">
+                <select
+                  value={selectedQuality || ''}
+                  onChange={(e) => setSelectedQuality(e.target.value)}
+                  className="input-field !py-2 !w-auto min-w-[160px] text-sm pr-8"
+                >
+                  {availableQualities.map(q => {
+                    const info = QUALITY_LABELS[q] || { label: q, icon: '' };
+                    return (
+                      <option key={q} value={q}>
+                        {info.icon} {info.label}{q === 'Standard' ? '（推薦）' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+                {selectedQuality && (() => {
+                  const info = QUALITY_LABELS[selectedQuality];
+                  if (!info) return null;
                   return (
-                    <button
-                      key={q}
-                      onClick={() => setSelectedQuality(q)}
-                      className={`relative text-left p-4 rounded-xl border-2 transition-all duration-200 ${
-                        isSelected
-                          ? `${info.bg} ${info.border} shadow-md`
-                          : 'bg-white border-gray-100 hover:border-gray-300 hover:shadow-sm'
-                      }`}
-                    >
-                      {isRecommended && (
-                        <span className="absolute -top-2.5 right-3 px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-600 text-white">
-                          推薦
-                        </span>
-                      )}
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-base">{info.icon}</span>
-                        <span className={`font-semibold text-sm ${isSelected ? info.color : 'text-gray-800'}`}>
-                          {info.label}
-                        </span>
-                      </div>
-                      <p className={`text-xs leading-relaxed ${isSelected ? 'text-gray-700' : 'text-gray-400'}`}>
-                        {info.shortDesc}
-                      </p>
-                    </button>
+                    <p className={`text-xs leading-relaxed px-3 py-1.5 rounded-lg ${info.bg} ${info.color} flex-1 min-w-0`}>
+                      {info.shortDesc}
+                    </p>
                   );
-                })}
+                })()}
               </div>
             </div>
           )}
