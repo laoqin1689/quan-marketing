@@ -92,7 +92,7 @@ export default function PlatformClient() {
   const [loading, setLoading] = useState(true);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedQuality, setSelectedQuality] = useState<string | null>(null);
-  const [showQualityInfo, setShowQualityInfo] = useState(false);
+
   const [customQty, setCustomQty] = useState('');
   const [showCustom, setShowCustom] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -327,58 +327,43 @@ export default function PlatformClient() {
           {/* ==================== Quality Switcher ==================== */}
           {availableQualities.length > 0 && (
             <div className="mb-6">
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-sm font-medium text-gray-700 shrink-0">品質方案：</span>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {availableQualities.map(q => {
-                    const info = QUALITY_LABELS[q] || { label: q, color: 'text-gray-600', bg: 'bg-gray-100', border: 'border-gray-200' };
-                    return (
-                      <button
-                        key={q}
-                        onClick={() => setSelectedQuality(q)}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                          selectedQuality === q
-                            ? `${info.bg} ${info.color} ring-2 ring-current/30 shadow-sm`
-                            : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        {info.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  onClick={() => setShowQualityInfo(!showQualityInfo)}
-                  className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1 shrink-0"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  各版本有什麼不同？
-                </button>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-sm font-medium text-gray-700">選擇品質方案</span>
+                <span className="text-xs text-gray-400">（不確定？選「標準版」就對了）</span>
               </div>
-
-              {/* Quality Info Panel */}
-              {showQualityInfo && (
-                <div className="mt-4 bg-white rounded-xl border border-gray-200 overflow-hidden">
-                  <div className="p-4">
-                    <h4 className="font-semibold text-gray-900 mb-3">品質方案說明</h4>
-                    <div className="space-y-3">
-                      {availableQualities.map(q => {
-                        const info = QUALITY_LABELS[q] || { label: q, desc: '', bg: 'bg-gray-100', color: 'text-gray-600' };
-                        return (
-                          <div key={q} className="flex items-start gap-3">
-                            <span className={`shrink-0 mt-0.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${info.bg} ${info.color}`}>
-                              {info.label}
-                            </span>
-                            <p className="text-sm text-gray-600 leading-relaxed">{info.desc}</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {availableQualities.map(q => {
+                  const info = QUALITY_LABELS[q] || { label: q, color: 'text-gray-600', bg: 'bg-gray-100', border: 'border-gray-200', shortDesc: '', icon: '' };
+                  const isSelected = selectedQuality === q;
+                  const isRecommended = q === 'Standard';
+                  return (
+                    <button
+                      key={q}
+                      onClick={() => setSelectedQuality(q)}
+                      className={`relative text-left p-4 rounded-xl border-2 transition-all duration-200 ${
+                        isSelected
+                          ? `${info.bg} ${info.border} shadow-md`
+                          : 'bg-white border-gray-100 hover:border-gray-300 hover:shadow-sm'
+                      }`}
+                    >
+                      {isRecommended && (
+                        <span className="absolute -top-2.5 right-3 px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-600 text-white">
+                          推薦
+                        </span>
+                      )}
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-base">{info.icon}</span>
+                        <span className={`font-semibold text-sm ${isSelected ? info.color : 'text-gray-800'}`}>
+                          {info.label}
+                        </span>
+                      </div>
+                      <p className={`text-xs leading-relaxed ${isSelected ? 'text-gray-700' : 'text-gray-400'}`}>
+                        {info.shortDesc}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 

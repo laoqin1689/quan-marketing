@@ -1,12 +1,14 @@
 // ==================== Quality Labels & Descriptions ====================
 
-export const QUALITY_LABELS: Record<string, { label: string; color: string; bg: string; border: string; desc: string }> = {
+export const QUALITY_LABELS: Record<string, { label: string; color: string; bg: string; border: string; desc: string; shortDesc: string; icon: string }> = {
   'Bot/Low': {
     label: '超值版',
     color: 'text-gray-600',
     bg: 'bg-gray-100',
     border: 'border-gray-200',
     desc: '價格最低，適合測試或預算極有限的情況。品質較不穩定，可能有較多掉落。',
+    shortDesc: '最便宜，適合測試用途',
+    icon: '💰',
   },
   'Economy': {
     label: '經濟版',
@@ -14,6 +16,8 @@ export const QUALITY_LABELS: Record<string, { label: string; color: string; bg: 
     bg: 'bg-emerald-50',
     border: 'border-emerald-200',
     desc: '速度快、價格低，適合預算有限的用戶。可能有少量掉落，不含保固。',
+    shortDesc: '速度快、價格最低，可能會有少量掉落',
+    icon: '⚡',
   },
   'Standard': {
     label: '標準版',
@@ -21,6 +25,8 @@ export const QUALITY_LABELS: Record<string, { label: string; color: string; bg: 
     bg: 'bg-blue-50',
     border: 'border-blue-200',
     desc: '性價比最高的選擇。品質穩定、速度適中，適合一般用途。部分服務含保固。',
+    shortDesc: '性價比最高，穩定交付，推薦大多數用戶',
+    icon: '👍',
   },
   'HQ': {
     label: '高品質',
@@ -28,6 +34,8 @@ export const QUALITY_LABELS: Record<string, { label: string; color: string; bg: 
     bg: 'bg-purple-50',
     border: 'border-purple-200',
     desc: '使用真實帳號外觀，安全性高。適合重視帳號安全的用戶，大部分含 30 天保固。',
+    shortDesc: '真人帳號互動，掉落率極低，有保固',
+    icon: '✨',
   },
   'Premium': {
     label: '精選真人',
@@ -35,6 +43,8 @@ export const QUALITY_LABELS: Record<string, { label: string; color: string; bg: 
     bg: 'bg-amber-50',
     border: 'border-amber-200',
     desc: '100% 真人活躍帳號，品質最高。適合品牌帳號與長期經營，含永久保固。',
+    shortDesc: '100% 真人帳號，最穩定，適合品牌客戶',
+    icon: '👑',
   },
 };
 

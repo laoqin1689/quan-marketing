@@ -1,39 +1,215 @@
 'use client';
 
-const PLATFORM_ICONS: Record<string, { bg: string; label: string }> = {
-  'Instagram': { bg: 'from-pink-500 to-purple-600', label: 'IG' },
-  'Facebook': { bg: 'from-blue-600 to-blue-700', label: 'FB' },
-  'YouTube': { bg: 'from-red-500 to-red-600', label: 'YT' },
-  'TikTok': { bg: 'from-gray-900 to-gray-800', label: 'TT' },
-  'Threads': { bg: 'from-gray-800 to-gray-900', label: 'Th' },
-  'Twitter/X': { bg: 'from-gray-900 to-black', label: 'X' },
-  'LINE': { bg: 'from-green-500 to-green-600', label: 'LN' },
-  'Telegram': { bg: 'from-sky-400 to-sky-500', label: 'TG' },
-  'Snapchat': { bg: 'from-yellow-400 to-yellow-500', label: 'SC' },
-  'Spotify': { bg: 'from-green-400 to-green-600', label: 'SP' },
-  'LinkedIn': { bg: 'from-blue-700 to-blue-800', label: 'LI' },
-  'Twitch': { bg: 'from-purple-500 to-purple-700', label: 'TW' },
-  'Google': { bg: 'from-blue-500 to-green-500', label: 'G' },
-  'Google Maps': { bg: 'from-green-500 to-blue-500', label: 'GM' },
-  'Website Traffic': { bg: 'from-indigo-500 to-indigo-600', label: 'WT' },
-  'Crypto/NFT': { bg: 'from-orange-400 to-yellow-500', label: 'CR' },
-  'SoundCloud': { bg: 'from-orange-500 to-orange-600', label: 'SC' },
-  'Quora': { bg: 'from-red-600 to-red-700', label: 'Qu' },
-  'Xiaohongshu': { bg: 'from-red-500 to-red-600', label: 'XH' },
-  'Shopee': { bg: 'from-orange-500 to-red-500', label: 'SH' },
-  'Reddit': { bg: 'from-orange-500 to-orange-600', label: 'RD' },
-  'Taiwan Forums': { bg: 'from-teal-500 to-teal-600', label: 'TF' },
-  'Clubhouse': { bg: 'from-yellow-600 to-amber-600', label: 'CH' },
-  'Pinterest': { bg: 'from-red-500 to-red-600', label: 'Pi' },
-  'Apple Music': { bg: 'from-pink-500 to-red-500', label: 'AM' },
-  'Dcard': { bg: 'from-sky-500 to-sky-600', label: 'DC' },
-  'Tumblr': { bg: 'from-indigo-600 to-indigo-700', label: 'Tu' },
-  'Vimeo': { bg: 'from-cyan-500 to-blue-500', label: 'Vi' },
-  'Discord': { bg: 'from-indigo-500 to-indigo-600', label: 'DS' },
-  'Shazam': { bg: 'from-blue-500 to-blue-600', label: 'SZ' },
-  'Deezer': { bg: 'from-purple-600 to-purple-700', label: 'DZ' },
-  'Other': { bg: 'from-gray-400 to-gray-500', label: '...' },
+import {
+  FaInstagram,
+  FaFacebookF,
+  FaYoutube,
+  FaTiktok,
+  FaThreads,
+  FaXTwitter,
+  FaLine,
+  FaTelegram,
+  FaSnapchat,
+  FaSpotify,
+  FaLinkedinIn,
+  FaTwitch,
+  FaGoogle,
+  FaMapLocationDot,
+  FaGlobe,
+  FaRedditAlien,
+  FaPinterestP,
+  FaApple,
+  FaDiscord,
+  FaTumblr,
+  FaVimeoV,
+  FaSoundcloud,
+  FaQuora,
+  FaShopify,
+} from 'react-icons/fa6';
+
+import {
+  SiSnapchat,
+  SiShazam,
+  SiClubhouse,
+} from 'react-icons/si';
+
+import type { IconType } from 'react-icons';
+
+// ==================== Platform Icon Config ====================
+
+interface PlatformConfig {
+  icon: IconType | null;
+  bg: string;
+  label: string; // fallback text when no icon
+  iconColor?: string; // override icon color (default white)
+}
+
+const PLATFORM_ICONS: Record<string, PlatformConfig> = {
+  'Instagram': {
+    icon: FaInstagram,
+    bg: 'bg-gradient-to-br from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]',
+    label: 'IG',
+  },
+  'Facebook': {
+    icon: FaFacebookF,
+    bg: 'bg-[#1877F2]',
+    label: 'FB',
+  },
+  'YouTube': {
+    icon: FaYoutube,
+    bg: 'bg-[#FF0000]',
+    label: 'YT',
+  },
+  'TikTok': {
+    icon: FaTiktok,
+    bg: 'bg-black',
+    label: 'TT',
+  },
+  'Threads': {
+    icon: FaThreads,
+    bg: 'bg-black',
+    label: 'Th',
+  },
+  'Twitter/X': {
+    icon: FaXTwitter,
+    bg: 'bg-black',
+    label: 'X',
+  },
+  'LINE': {
+    icon: FaLine,
+    bg: 'bg-[#06C755]',
+    label: 'LN',
+  },
+  'Telegram': {
+    icon: FaTelegram,
+    bg: 'bg-[#26A5E4]',
+    label: 'TG',
+  },
+  'Snapchat': {
+    icon: FaSnapchat,
+    bg: 'bg-[#FFFC00]',
+    label: 'SC',
+    iconColor: 'text-black',
+  },
+  'Spotify': {
+    icon: FaSpotify,
+    bg: 'bg-[#1DB954]',
+    label: 'SP',
+  },
+  'LinkedIn': {
+    icon: FaLinkedinIn,
+    bg: 'bg-[#0A66C2]',
+    label: 'LI',
+  },
+  'Twitch': {
+    icon: FaTwitch,
+    bg: 'bg-[#9146FF]',
+    label: 'TW',
+  },
+  'Google': {
+    icon: FaGoogle,
+    bg: 'bg-[#4285F4]',
+    label: 'G',
+  },
+  'Google Maps': {
+    icon: FaMapLocationDot,
+    bg: 'bg-[#34A853]',
+    label: 'GM',
+  },
+  'Website Traffic': {
+    icon: FaGlobe,
+    bg: 'bg-gradient-to-br from-indigo-500 to-indigo-600',
+    label: 'WT',
+  },
+  'Crypto/NFT': {
+    icon: null,
+    bg: 'bg-gradient-to-br from-orange-400 to-yellow-500',
+    label: 'CR',
+  },
+  'SoundCloud': {
+    icon: FaSoundcloud,
+    bg: 'bg-[#FF5500]',
+    label: 'SC',
+  },
+  'Quora': {
+    icon: FaQuora,
+    bg: 'bg-[#B92B27]',
+    label: 'Qu',
+  },
+  'Xiaohongshu': {
+    icon: null,
+    bg: 'bg-[#FE2C55]',
+    label: '小红书',
+  },
+  'Shopee': {
+    icon: null,
+    bg: 'bg-[#EE4D2D]',
+    label: '蝦皮',
+  },
+  'Reddit': {
+    icon: FaRedditAlien,
+    bg: 'bg-[#FF4500]',
+    label: 'RD',
+  },
+  'Taiwan Forums': {
+    icon: null,
+    bg: 'bg-gradient-to-br from-teal-500 to-teal-600',
+    label: '論壇',
+  },
+  'Clubhouse': {
+    icon: SiClubhouse,
+    bg: 'bg-[#F3E6D3]',
+    label: 'CH',
+    iconColor: 'text-black',
+  },
+  'Pinterest': {
+    icon: FaPinterestP,
+    bg: 'bg-[#E60023]',
+    label: 'Pi',
+  },
+  'Apple Music': {
+    icon: FaApple,
+    bg: 'bg-gradient-to-br from-[#FA2D48] to-[#A334FA]',
+    label: 'AM',
+  },
+  'Dcard': {
+    icon: null,
+    bg: 'bg-[#006AA6]',
+    label: 'Dcard',
+  },
+  'Tumblr': {
+    icon: FaTumblr,
+    bg: 'bg-[#36465D]',
+    label: 'Tu',
+  },
+  'Vimeo': {
+    icon: FaVimeoV,
+    bg: 'bg-[#1AB7EA]',
+    label: 'Vi',
+  },
+  'Discord': {
+    icon: FaDiscord,
+    bg: 'bg-[#5865F2]',
+    label: 'DS',
+  },
+  'Shazam': {
+    icon: SiShazam,
+    bg: 'bg-[#0088FF]',
+    label: 'SZ',
+  },
+  'Deezer': {
+    icon: null,
+    bg: 'bg-black',
+    label: 'DZ',
+  },
+  'Other': {
+    icon: null,
+    bg: 'bg-gradient-to-br from-gray-400 to-gray-500',
+    label: '...',
+  },
 };
+
+// ==================== Component ====================
 
 interface PlatformIconProps {
   platform: string;
@@ -42,21 +218,48 @@ interface PlatformIconProps {
 }
 
 export default function PlatformIcon({ platform, size = 'md', className = '' }: PlatformIconProps) {
-  const info = PLATFORM_ICONS[platform] || { bg: 'from-gray-400 to-gray-500', label: platform.slice(0, 2) };
+  const config = PLATFORM_ICONS[platform] || {
+    icon: null,
+    bg: 'bg-gradient-to-br from-gray-400 to-gray-500',
+    label: platform.slice(0, 2),
+  };
 
   const sizeClasses = {
-    sm: 'w-6 h-6 text-[10px] rounded-md',
-    md: 'w-8 h-8 text-xs rounded-lg',
-    lg: 'w-10 h-10 text-sm rounded-lg',
-    xl: 'w-14 h-14 text-lg rounded-xl',
+    sm: 'w-6 h-6 rounded-md',
+    md: 'w-8 h-8 rounded-lg',
+    lg: 'w-10 h-10 rounded-lg',
+    xl: 'w-14 h-14 rounded-xl',
   };
+
+  const iconSizes = {
+    sm: 12,
+    md: 16,
+    lg: 20,
+    xl: 28,
+  };
+
+  const textSizes = {
+    sm: 'text-[8px]',
+    md: 'text-[10px]',
+    lg: 'text-xs',
+    xl: 'text-sm',
+  };
+
+  const IconComponent = config.icon;
+  const colorClass = config.iconColor || 'text-white';
 
   return (
     <div
-      className={`bg-gradient-to-br ${info.bg} flex items-center justify-center text-white font-bold shrink-0 ${sizeClasses[size]} ${className}`}
+      className={`${config.bg} flex items-center justify-center shrink-0 ${sizeClasses[size]} ${className}`}
       title={platform}
     >
-      {info.label}
+      {IconComponent ? (
+        <IconComponent size={iconSizes[size]} className={colorClass} />
+      ) : (
+        <span className={`${colorClass} font-bold ${textSizes[size]}`}>
+          {config.label}
+        </span>
+      )}
     </div>
   );
 }
