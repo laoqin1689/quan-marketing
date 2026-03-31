@@ -73,6 +73,15 @@ export default function CheckoutPage() {
         usernames: item.extraData?.usernames || undefined,
         keywords: item.extraData?.keywords || undefined,
         country: item.extraData?.country || undefined,
+        // New fields
+        reviewer_name: item.extraData?.reviewer_name || undefined,
+        reviewer_gender: item.extraData?.reviewer_gender || undefined,
+        duration: item.extraData?.duration || undefined,
+        watch_time: item.extraData?.watch_time || undefined,
+        drip_feed: item.extraData?.drip_feed || undefined,
+        drip_feed_runs: item.extraData?.drip_feed_runs || undefined,
+        drip_feed_interval: item.extraData?.drip_feed_interval || undefined,
+        notes: item.extraData?.notes || undefined,
       })),
       coupon_code: couponCode || undefined,
       ref_code: refCode || undefined,
@@ -102,6 +111,17 @@ export default function CheckoutPage() {
       setError('網路錯誤，請稍後再試');
     }
     setIsSubmitting(false);
+  };
+
+  // Duration label helper
+  const getDurationLabel = (mins: number) => {
+    return `${mins} 分鐘`;
+  };
+
+  // Watch time label helper
+  const getWatchTimeLabel = (val: string) => {
+    const map: Record<string, string> = { short: '短觀看', medium: '中等觀看', long: '長觀看', full: '完整觀看' };
+    return map[val] || val;
   };
 
   // Order success view
@@ -216,6 +236,34 @@ export default function CheckoutPage() {
                           {item.extraData?.rating && (
                             <p className="text-xs text-amber-500 mt-0.5">
                               {'★'.repeat(item.extraData.rating)}{'☆'.repeat(5 - item.extraData.rating)}
+                            </p>
+                          )}
+                          {item.extraData?.duration && (
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              持續時間: {getDurationLabel(item.extraData.duration)}
+                            </p>
+                          )}
+                          {item.extraData?.watch_time && (
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              觀看時長: {getWatchTimeLabel(item.extraData.watch_time)}
+                            </p>
+                          )}
+                          {item.extraData?.reviewer_gender && item.extraData.reviewer_gender !== 'any' && (
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              評論者: {item.extraData.reviewer_gender === 'male' ? '男性' : '女性'}
+                              {item.extraData.reviewer_name ? ` (${item.extraData.reviewer_name})` : ''}
+                            </p>
+                          )}
+                          {item.extraData?.drip_feed && (
+                            <p className="text-xs text-blue-500 mt-0.5">
+                              滴灌模式
+                              {item.extraData.drip_feed_runs ? ` · 每日 ${item.extraData.drip_feed_runs}` : ''}
+                              {item.extraData.drip_feed_interval ? ` · ${item.extraData.drip_feed_interval} 天` : ''}
+                            </p>
+                          )}
+                          {item.extraData?.notes && (
+                            <p className="text-xs text-gray-400 mt-0.5 truncate">
+                              備註: {item.extraData.notes}
                             </p>
                           )}
                         </div>

@@ -173,6 +173,15 @@ export interface CreateOrderRequest {
     usernames?: string;  // newline-separated usernames for mentions
     keywords?: string;   // newline-separated keywords for SEO
     country?: string;    // country code for targeted services
+    // New fields
+    reviewer_name?: string;   // reviewer display name for Google Reviews
+    reviewer_gender?: string; // reviewer gender: 'any' | 'male' | 'female'
+    duration?: number;        // live stream duration in minutes
+    watch_time?: string;      // video watch time: 'short' | 'medium' | 'long' | 'full'
+    drip_feed?: boolean;      // enable drip-feed mode
+    drip_feed_runs?: number;  // daily delivery amount
+    drip_feed_interval?: number; // number of days to spread delivery
+    notes?: string;           // order notes
   }[];
   coupon_code?: string;
   ref_code?: string;

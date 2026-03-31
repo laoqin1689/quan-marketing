@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import PlatformIcon from './PlatformIcon';
 import type { ServiceItem, FilterOption } from '@/lib/api';
 import { parseRequiredFields, type CartItemExtraData } from '@/lib/cart';
-import { FIELD_DEFINITIONS, SERVICE_TYPE_LINK_LABELS, LINK_PLACEHOLDERS } from '@/lib/constants';
+import { FIELD_DEFINITIONS, SERVICE_TYPE_LINK_LABELS, LINK_PLACEHOLDERS, SERVICE_TYPE_EXTRA_FIELDS } from '@/lib/constants';
 
 // ==================== Constants ====================
 
@@ -90,6 +90,16 @@ export default function ServiceCatalog({ categories, filters }: ServiceCatalogPr
   const [cardRatings, setCardRatings] = useState<Record<number, string>>({});
   const [cardAnswerNumbers, setCardAnswerNumbers] = useState<Record<number, string>>({});
   const [cardUsernames, setCardUsernames] = useState<Record<number, string>>({});
+  // New field states
+  const [cardCountry, setCardCountry] = useState<Record<number, string>>({});
+  const [cardReviewerName, setCardReviewerName] = useState<Record<number, string>>({});
+  const [cardReviewerGender, setCardReviewerGender] = useState<Record<number, string>>({});
+  const [cardDuration, setCardDuration] = useState<Record<number, string>>({});
+  const [cardWatchTime, setCardWatchTime] = useState<Record<number, string>>({});
+  const [cardDripFeed, setCardDripFeed] = useState<Record<number, boolean>>({});
+  const [cardDripFeedRuns, setCardDripFeedRuns] = useState<Record<number, string>>({});
+  const [cardDripFeedInterval, setCardDripFeedInterval] = useState<Record<number, string>>({});
+  const [cardNotes, setCardNotes] = useState<Record<number, string>>({});
 
   // Sort platforms by count
   const sortedPlatforms = useMemo(() => {
@@ -252,10 +262,23 @@ export default function ServiceCatalog({ categories, filters }: ServiceCatalogPr
   const buildCardExtraData = (service: ServiceItem): CartItemExtraData | undefined => {
     const data: CartItemExtraData = {};
     const rf = parseRequiredFields(service);
+    const ef = SERVICE_TYPE_EXTRA_FIELDS[service.service_type] || [];
     if (rf.includes('comments') && cardComments[service.id]) data.comments = cardComments[service.id];
     if (rf.includes('rating') && cardRatings[service.id]) data.rating = parseInt(cardRatings[service.id]);
     if (rf.includes('answer_number') && cardAnswerNumbers[service.id]) data.answer_number = parseInt(cardAnswerNumbers[service.id]);
     if (rf.includes('usernames') && cardUsernames[service.id]) data.usernames = cardUsernames[service.id];
+    if (rf.includes('country') && cardCountry[service.id]) data.country = cardCountry[service.id];
+    // New extra fields
+    if (ef.includes('reviewer_name') && cardReviewerName[service.id]) data.reviewer_name = cardReviewerName[service.id];
+    if (ef.includes('reviewer_gender') && cardReviewerGender[service.id] && cardReviewerGender[service.id] !== 'any') data.reviewer_gender = cardReviewerGender[service.id];
+    if (ef.includes('duration') && cardDuration[service.id]) data.duration = parseInt(cardDuration[service.id]);
+    if (ef.includes('watch_time') && cardWatchTime[service.id]) data.watch_time = cardWatchTime[service.id];
+    if (cardDripFeed[service.id]) {
+      data.drip_feed = true;
+      if (cardDripFeedRuns[service.id]) data.drip_feed_runs = parseInt(cardDripFeedRuns[service.id]);
+      if (cardDripFeedInterval[service.id]) data.drip_feed_interval = parseInt(cardDripFeedInterval[service.id]);
+    }
+    if (cardNotes[service.id]) data.notes = cardNotes[service.id];
     return Object.keys(data).length > 0 ? data : undefined;
   };
 
@@ -616,12 +639,169 @@ export default function ServiceCatalog({ categories, filters }: ServiceCatalogPr
                         </div>
                       )}
 
-                      {/* Price preview */}
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">預估金額</span>
-                        <span className="font-bold text-primary-600 text-base">
-                          {formatPrice(service.base_price_twd, qty)}
-                        </span>
+                      {/* Country select (for Targeted services) */}
+                      {(requiredFields.includes('country') || service.region === 'Targeted') && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            {FIELD_DEFINITIONS.country.label}
+                          </label>
+                          <select
+                            value={cardCountry[service.id] || ''}
+                            onChange={(e) => setCardCountry(prev => ({ ...prev, [service.id]: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 outline-none bg-white"
+                          >
+                            <option value="">{FIELD_DEFINITIONS.country.placeholder}</option>
+                            {FIELD_DEFINITIONS.country.options?.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Reviewer Name (for Reviews) */}
+                      {(SERVICE_TYPE_EXTRA_FIELDS[service.service_type] || []).includes('reviewer_name') && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            {FIELD_DEFINITIONS.reviewer_name.label}
+                          </label>
+                          <input
+                            type="text"
+                            placeholder={FIELD_DEFINITIONS.reviewer_name.placeholder}
+                            value={cardReviewerName[service.id] || ''}
+                            onChange={(e) => setCardReviewerName(prev => ({ ...prev, [service.id]: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 outline-none"
+                          />
+                          <p className="text-[10px] text-gray-400 mt-0.5">{FIELD_DEFINITIONS.reviewer_name.hint}</p>
+                        </div>
+                      )}
+
+                      {/* Reviewer Gender (for Reviews) */}
+                      {(SERVICE_TYPE_EXTRA_FIELDS[service.service_type] || []).includes('reviewer_gender') && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            {FIELD_DEFINITIONS.reviewer_gender.label}
+                          </label>
+                          <select
+                            value={cardReviewerGender[service.id] || 'any'}
+                            onChange={(e) => setCardReviewerGender(prev => ({ ...prev, [service.id]: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 outline-none bg-white"
+                          >
+                            {FIELD_DEFINITIONS.reviewer_gender.options?.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Duration (for Live Viewers) */}
+                      {(SERVICE_TYPE_EXTRA_FIELDS[service.service_type] || []).includes('duration') && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            {FIELD_DEFINITIONS.duration.label}
+                          </label>
+                          <select
+                            value={cardDuration[service.id] || '60'}
+                            onChange={(e) => setCardDuration(prev => ({ ...prev, [service.id]: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 outline-none bg-white"
+                          >
+                            {FIELD_DEFINITIONS.duration.options?.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                          <p className="text-[10px] text-gray-400 mt-0.5">{FIELD_DEFINITIONS.duration.hint}</p>
+                        </div>
+                      )}
+
+                      {/* Watch Time (for Views) */}
+                      {(SERVICE_TYPE_EXTRA_FIELDS[service.service_type] || []).includes('watch_time') && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            {FIELD_DEFINITIONS.watch_time.label}
+                          </label>
+                          <select
+                            value={cardWatchTime[service.id] || 'medium'}
+                            onChange={(e) => setCardWatchTime(prev => ({ ...prev, [service.id]: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 outline-none bg-white"
+                          >
+                            {FIELD_DEFINITIONS.watch_time.options?.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                          <p className="text-[10px] text-gray-400 mt-0.5">{FIELD_DEFINITIONS.watch_time.hint}</p>
+                        </div>
+                      )}
+
+                      {/* Drip Feed Toggle (for Followers/Likes) */}
+                      {(SERVICE_TYPE_EXTRA_FIELDS[service.service_type] || []).includes('drip_feed') && (
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <div
+                              onClick={() => setCardDripFeed(prev => ({ ...prev, [service.id]: !prev[service.id] }))}
+                              className={`relative w-9 h-5 rounded-full transition-colors ${cardDripFeed[service.id] ? 'bg-primary-600' : 'bg-gray-200'}`}
+                            >
+                              <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${cardDripFeed[service.id] ? 'translate-x-4' : ''}`} />
+                            </div>
+                            <span className="text-xs font-medium text-gray-600">{FIELD_DEFINITIONS.drip_feed.label}</span>
+                          </label>
+                          {cardDripFeed[service.id] && (
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[10px] text-gray-500 mb-0.5">{FIELD_DEFINITIONS.drip_feed_runs.label}</label>
+                                <input
+                                  type="number"
+                                  placeholder={FIELD_DEFINITIONS.drip_feed_runs.placeholder}
+                                  value={cardDripFeedRuns[service.id] || ''}
+                                  onChange={(e) => setCardDripFeedRuns(prev => ({ ...prev, [service.id]: e.target.value }))}
+                                  className="w-full px-2 py-1.5 rounded-lg border border-gray-200 text-xs focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 outline-none"
+                                  min={1}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] text-gray-500 mb-0.5">{FIELD_DEFINITIONS.drip_feed_interval.label}</label>
+                                <input
+                                  type="number"
+                                  placeholder={FIELD_DEFINITIONS.drip_feed_interval.placeholder}
+                                  value={cardDripFeedInterval[service.id] || ''}
+                                  onChange={(e) => setCardDripFeedInterval(prev => ({ ...prev, [service.id]: e.target.value }))}
+                                  className="w-full px-2 py-1.5 rounded-lg border border-gray-200 text-xs focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 outline-none"
+                                  min={1}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Notes */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          {FIELD_DEFINITIONS.notes.label}
+                        </label>
+                        <textarea
+                          placeholder={FIELD_DEFINITIONS.notes.placeholder}
+                          value={cardNotes[service.id] || ''}
+                          onChange={(e) => setCardNotes(prev => ({ ...prev, [service.id]: e.target.value }))}
+                          rows={2}
+                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 outline-none resize-none"
+                        />
+                        <p className="text-[10px] text-gray-400 mt-0.5">{FIELD_DEFINITIONS.notes.hint}</p>
+                      </div>
+
+                      {/* Price preview with formula */}
+                      <div className="bg-white rounded-lg border border-gray-100 p-3 space-y-1">
+                        <div className="flex items-center justify-center gap-1.5 text-xs text-gray-500">
+                          <span className="font-medium">{formatPricePer1k(service.base_price_twd)}</span>
+                          <span>/千</span>
+                          <span className="mx-0.5">×</span>
+                          <span className="font-medium">{qty.toLocaleString()}</span>
+                          <span>個</span>
+                          <span className="mx-0.5">=</span>
+                        </div>
+                        <div className="text-center">
+                          <span className="text-lg font-bold text-primary-600">
+                            {formatPrice(service.base_price_twd, qty)}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Buttons */}

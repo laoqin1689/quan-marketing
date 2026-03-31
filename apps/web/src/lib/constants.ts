@@ -105,22 +105,31 @@ export const PRESET_QUANTITIES = [100, 500, 1000, 5000, 10000, 20000, 50000];
 // ==================== Link Placeholder by Platform ====================
 
 export const LINK_PLACEHOLDERS: Record<string, string> = {
-  'Instagram': 'https://www.instagram.com/your_account',
+  'Instagram': 'https://www.instagram.com/your_account 或 @your_account',
   'Facebook': 'https://www.facebook.com/your_page',
-  'YouTube': 'https://www.youtube.com/@your_channel',
-  'TikTok': 'https://www.tiktok.com/@your_account',
+  'YouTube': 'https://www.youtube.com/@your_channel 或影片連結',
+  'TikTok': 'https://www.tiktok.com/@your_account 或影片連結',
   'Threads': 'https://www.threads.net/@your_account',
-  'Twitter/X': 'https://x.com/your_account',
+  'Twitter/X': 'https://x.com/your_account 或 @your_account',
   'LINE': 'LINE 官方帳號 ID（例如 @yourshop）',
   'Telegram': 'https://t.me/your_channel',
-  'Google': 'Google 商家連結',
-  'Google Maps': 'Google Maps 商家連結',
+  'Google': 'Google 商家連結（例如 https://g.page/your-business）',
+  'Google Maps': 'Google Maps 商家連結（例如 https://maps.google.com/?cid=...）',
+  'Spotify': 'https://open.spotify.com/track/... 或 artist/...',
+  'Twitch': 'https://www.twitch.tv/your_channel',
+  'LinkedIn': 'https://www.linkedin.com/in/your_profile',
+  'Pinterest': 'https://www.pinterest.com/your_account',
+  'Reddit': 'https://www.reddit.com/r/your_subreddit 或貼文連結',
+  'SoundCloud': 'https://soundcloud.com/your_account',
+  'Website Traffic': 'https://www.your-website.com',
+  'Shopee': '蝦皮商品或商店連結',
+  'Discord': 'Discord 伺服器邀請連結',
 };
 
 // ==================== Dynamic Form Field Definitions ====================
 
 export interface FieldConfig {
-  type: 'text' | 'textarea' | 'select' | 'number';
+  type: 'text' | 'textarea' | 'select' | 'number' | 'checkbox';
   label: string;
   placeholder: string;
   required: boolean;
@@ -149,7 +158,7 @@ export const FIELD_DEFINITIONS: Record<string, FieldConfig> = {
     label: '留言 / 評論內容',
     placeholder: '每行輸入一條留言\n例如：\n很棒的服務！\n推薦給大家\n非常滿意',
     required: true,
-    hint: '每行一條留言，系統會隨機選取使用',
+    hint: '每行一條留言，系統會隨機選取使用。支援多條評論隨機發布。',
   },
   rating: {
     type: 'select',
@@ -199,25 +208,109 @@ export const FIELD_DEFINITIONS: Record<string, FieldConfig> = {
     placeholder: '選擇國家或地區',
     required: false,
     options: [
-      { value: 'TW', label: '台灣' },
-      { value: 'US', label: '美國' },
-      { value: 'JP', label: '日本' },
-      { value: 'KR', label: '韓國' },
-      { value: 'HK', label: '香港' },
-      { value: 'SG', label: '新加坡' },
-      { value: 'MY', label: '馬來西亞' },
-      { value: 'TH', label: '泰國' },
-      { value: 'VN', label: '越南' },
-      { value: 'PH', label: '菲律賓' },
-      { value: 'ID', label: '印尼' },
-      { value: 'IN', label: '印度' },
-      { value: 'GB', label: '英國' },
-      { value: 'DE', label: '德國' },
-      { value: 'FR', label: '法國' },
-      { value: 'BR', label: '巴西' },
-      { value: 'AU', label: '澳洲' },
-      { value: 'CA', label: '加拿大' },
+      { value: 'TW', label: '🇹🇼 台灣' },
+      { value: 'US', label: '🇺🇸 美國' },
+      { value: 'JP', label: '🇯🇵 日本' },
+      { value: 'KR', label: '🇰🇷 韓國' },
+      { value: 'HK', label: '🇭🇰 香港' },
+      { value: 'SG', label: '🇸🇬 新加坡' },
+      { value: 'MY', label: '🇲🇾 馬來西亞' },
+      { value: 'TH', label: '🇹🇭 泰國' },
+      { value: 'VN', label: '🇻🇳 越南' },
+      { value: 'PH', label: '🇵🇭 菲律賓' },
+      { value: 'ID', label: '🇮🇩 印尼' },
+      { value: 'IN', label: '🇮🇳 印度' },
+      { value: 'GB', label: '🇬🇧 英國' },
+      { value: 'DE', label: '🇩🇪 德國' },
+      { value: 'FR', label: '🇫🇷 法國' },
+      { value: 'BR', label: '🇧🇷 巴西' },
+      { value: 'AU', label: '🇦🇺 澳洲' },
+      { value: 'CA', label: '🇨🇦 加拿大' },
+      { value: 'MX', label: '🇲🇽 墨西哥' },
+      { value: 'RU', label: '🇷🇺 俄羅斯' },
+      { value: 'TR', label: '🇹🇷 土耳其' },
+      { value: 'SA', label: '🇸🇦 沙烏地阿拉伯' },
+      { value: 'AE', label: '🇦🇪 阿聯酋' },
     ],
+  },
+  // ==================== 新增欄位 ====================
+  reviewer_name: {
+    type: 'text',
+    label: '評論者姓名',
+    placeholder: '輸入評論者姓名（選填，留空則隨機生成）',
+    required: false,
+    hint: '可指定評論者顯示名稱，留空系統會自動生成',
+  },
+  reviewer_gender: {
+    type: 'select',
+    label: '評論者性別',
+    placeholder: '選擇評論者性別',
+    required: false,
+    defaultValue: 'any',
+    options: [
+      { value: 'any', label: '不指定（隨機）' },
+      { value: 'male', label: '男性' },
+      { value: 'female', label: '女性' },
+    ],
+    hint: '指定評論者帳號的性別偏好',
+  },
+  duration: {
+    type: 'select',
+    label: '持續時間',
+    placeholder: '選擇直播持續時間',
+    required: false,
+    defaultValue: '60',
+    options: [
+      { value: '30', label: '30 分鐘' },
+      { value: '60', label: '60 分鐘' },
+      { value: '90', label: '90 分鐘' },
+      { value: '120', label: '120 分鐘' },
+      { value: '180', label: '180 分鐘' },
+      { value: '240', label: '240 分鐘' },
+    ],
+    hint: '選擇直播觀眾停留的時間長度',
+  },
+  watch_time: {
+    type: 'select',
+    label: '觀看時長',
+    placeholder: '選擇觀看時長',
+    required: false,
+    defaultValue: 'medium',
+    options: [
+      { value: 'short', label: '短觀看（30秒~1分鐘）' },
+      { value: 'medium', label: '中等觀看（1~3分鐘）' },
+      { value: 'long', label: '長觀看（3~5分鐘）' },
+      { value: 'full', label: '完整觀看（影片全長）' },
+    ],
+    hint: '較長的觀看時長有助於提升演算法推薦',
+  },
+  drip_feed: {
+    type: 'checkbox',
+    label: '啟用滴灌模式（Drip-feed）',
+    placeholder: '',
+    required: false,
+    hint: '開啟後可設定每日投放量，讓增長更自然',
+  },
+  drip_feed_runs: {
+    type: 'number',
+    label: '每日投放量',
+    placeholder: '例如：100',
+    required: false,
+    hint: '每天投放的數量，建議不超過總數量的 20%',
+  },
+  drip_feed_interval: {
+    type: 'number',
+    label: '投放天數',
+    placeholder: '例如：7',
+    required: false,
+    hint: '分幾天投放完成（系統會自動計算每日量）',
+  },
+  notes: {
+    type: 'textarea',
+    label: '訂單備註',
+    placeholder: '如有特殊需求請在此說明\n例如：希望分批投放、指定時間開始等',
+    required: false,
+    hint: '選填，如有特殊要求可在此備註',
   },
 };
 
@@ -239,6 +332,29 @@ export const SERVICE_TYPE_LINK_LABELS: Record<string, string> = {
   'Packages': '帳號連結',
   'Posts': '帳號 / 版面連結',
   'Other': '連結',
+};
+
+// ==================== Service Type → Extra Fields Mapping ====================
+// Defines which extra fields should be shown for each service type
+// These are in addition to the base fields defined in required_fields
+
+export const SERVICE_TYPE_EXTRA_FIELDS: Record<string, string[]> = {
+  'Reviews': ['reviewer_name', 'reviewer_gender'],
+  'Live Viewers': ['duration'],
+  'Views': ['watch_time'],
+  'Comments': [],
+  'Followers': ['drip_feed', 'drip_feed_runs', 'drip_feed_interval'],
+  'Likes': ['drip_feed', 'drip_feed_runs', 'drip_feed_interval'],
+  'Traffic': [],
+  'Shares': [],
+  'Saves': [],
+  'Votes': [],
+  'Mentions': [],
+  'Stories': [],
+  'Accounts': [],
+  'Packages': [],
+  'Posts': [],
+  'Other': [],
 };
 
 // ==================== Hot Deals (Featured Packages) ====================

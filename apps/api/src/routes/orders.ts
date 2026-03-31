@@ -104,6 +104,17 @@ ordersRoute.post('/', async (c) => {
       if (item.usernames) extraData.usernames = item.usernames.trim();
       if (item.keywords) extraData.keywords = item.keywords.trim();
       if (item.country) extraData.country = item.country.trim();
+      // New fields
+      if (item.reviewer_name) extraData.reviewer_name = item.reviewer_name.trim();
+      if (item.reviewer_gender && item.reviewer_gender !== 'any') extraData.reviewer_gender = item.reviewer_gender;
+      if (item.duration) extraData.duration = item.duration;
+      if (item.watch_time) extraData.watch_time = item.watch_time;
+      if (item.drip_feed) {
+        extraData.drip_feed = true;
+        if (item.drip_feed_runs) extraData.drip_feed_runs = item.drip_feed_runs;
+        if (item.drip_feed_interval) extraData.drip_feed_interval = item.drip_feed_interval;
+      }
+      if (item.notes) extraData.notes = item.notes.trim();
 
       const unitPrice = category.base_price_twd / 1000; // price per unit
       const subtotal = Math.round(unitPrice * item.quantity * 100) / 100;
