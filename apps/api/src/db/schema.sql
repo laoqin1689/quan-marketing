@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS categories (
     is_popular      INTEGER DEFAULT 0,   -- 是否為熱門推薦
     is_active       INTEGER DEFAULT 1,
     sort_order      INTEGER DEFAULT 0,
+    required_fields TEXT DEFAULT '["link","quantity"]',  -- JSON: 動態表單欄位配置
     created_at      TEXT DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_categories_platform ON categories(platform);
@@ -141,7 +142,8 @@ CREATE TABLE IF NOT EXISTS order_items (
     supplier_status TEXT DEFAULT 'pending',
     start_count     INTEGER,
     current_count   INTEGER,
-    remains         INTEGER
+    remains         INTEGER,
+    extra_data      TEXT               -- JSON: 動態表單的額外資料（comments, rating, answer_number 等）
 );
 CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
 

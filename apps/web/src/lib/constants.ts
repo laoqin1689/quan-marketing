@@ -117,6 +117,130 @@ export const LINK_PLACEHOLDERS: Record<string, string> = {
   'Google Maps': 'Google Maps 商家連結',
 };
 
+// ==================== Dynamic Form Field Definitions ====================
+
+export interface FieldConfig {
+  type: 'text' | 'textarea' | 'select' | 'number';
+  label: string;
+  placeholder: string;
+  required: boolean;
+  hint?: string;
+  options?: { value: string; label: string }[];
+  defaultValue?: string;
+}
+
+// Field definitions for dynamic order forms
+export const FIELD_DEFINITIONS: Record<string, FieldConfig> = {
+  link: {
+    type: 'text',
+    label: '連結 / 帳號',
+    placeholder: '請輸入您的社群帳號或連結',
+    required: true,
+    hint: '請確認帳號為公開狀態，以便服務正常交付',
+  },
+  quantity: {
+    type: 'number',
+    label: '數量',
+    placeholder: '輸入數量',
+    required: true,
+  },
+  comments: {
+    type: 'textarea',
+    label: '留言 / 評論內容',
+    placeholder: '每行輸入一條留言\n例如：\n很棒的服務！\n推薦給大家\n非常滿意',
+    required: true,
+    hint: '每行一條留言，系統會隨機選取使用',
+  },
+  rating: {
+    type: 'select',
+    label: '星級評分',
+    placeholder: '選擇星級',
+    required: false,
+    defaultValue: '5',
+    options: [
+      { value: '5', label: '★★★★★ 5星' },
+      { value: '4', label: '★★★★☆ 4星' },
+      { value: '3', label: '★★★☆☆ 3星' },
+      { value: '2', label: '★★☆☆☆ 2星' },
+      { value: '1', label: '★☆☆☆☆ 1星' },
+    ],
+  },
+  answer_number: {
+    type: 'select',
+    label: '投票選項',
+    placeholder: '選擇投票選項',
+    required: true,
+    options: [
+      { value: '1', label: '選項 1' },
+      { value: '2', label: '選項 2' },
+      { value: '3', label: '選項 3' },
+      { value: '4', label: '選項 4' },
+      { value: '5', label: '選項 5' },
+      { value: '6', label: '選項 6' },
+    ],
+  },
+  usernames: {
+    type: 'textarea',
+    label: '用戶名列表',
+    placeholder: '每行一個用戶名\n例如：\n@user1\n@user2\n@user3',
+    required: true,
+    hint: '每行輸入一個用戶名，包含 @ 符號',
+  },
+  keywords: {
+    type: 'textarea',
+    label: '關鍵字',
+    placeholder: '每行一個關鍵字',
+    required: true,
+    hint: '每行輸入一個關鍵字',
+  },
+  country: {
+    type: 'select',
+    label: '國家 / 地區',
+    placeholder: '選擇國家或地區',
+    required: false,
+    options: [
+      { value: 'TW', label: '台灣' },
+      { value: 'US', label: '美國' },
+      { value: 'JP', label: '日本' },
+      { value: 'KR', label: '韓國' },
+      { value: 'HK', label: '香港' },
+      { value: 'SG', label: '新加坡' },
+      { value: 'MY', label: '馬來西亞' },
+      { value: 'TH', label: '泰國' },
+      { value: 'VN', label: '越南' },
+      { value: 'PH', label: '菲律賓' },
+      { value: 'ID', label: '印尼' },
+      { value: 'IN', label: '印度' },
+      { value: 'GB', label: '英國' },
+      { value: 'DE', label: '德國' },
+      { value: 'FR', label: '法國' },
+      { value: 'BR', label: '巴西' },
+      { value: 'AU', label: '澳洲' },
+      { value: 'CA', label: '加拿大' },
+    ],
+  },
+};
+
+// Service-type specific link labels
+export const SERVICE_TYPE_LINK_LABELS: Record<string, string> = {
+  'Followers': '帳號 / 頁面連結',
+  'Likes': '貼文 / 影片連結',
+  'Views': '影片連結',
+  'Comments': '貼文連結',
+  'Shares': '貼文連結',
+  'Live Viewers': '直播連結',
+  'Reviews': '商家連結',
+  'Traffic': '網站 URL',
+  'Votes': '投票連結',
+  'Saves': '貼文連結',
+  'Mentions': '貼文連結',
+  'Stories': '帳號連結',
+  'Accounts': '',
+  'Packages': '帳號連結',
+  'Posts': '帳號 / 版面連結',
+  'Other': '連結',
+};
+
 // ==================== Hot Deals (Featured Packages) ====================
 
 export interface HotDeal {

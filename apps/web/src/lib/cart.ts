@@ -2,10 +2,21 @@
 
 import type { ServiceItem } from '@/lib/api';
 
+// Extra data for dynamic form fields per service type
+export interface CartItemExtraData {
+  comments?: string;    // newline-separated comments for Comments/Reviews/Posts
+  rating?: number;      // 1-5 star rating for Reviews
+  answer_number?: number; // poll option number for Votes
+  usernames?: string;   // newline-separated usernames for Mentions
+  keywords?: string;    // newline-separated keywords for SEO
+  country?: string;     // country code for targeted services
+}
+
 export interface CartItem {
   service: ServiceItem;
   quantity: number;
   link: string;
+  extraData?: CartItemExtraData;
 }
 
 const CART_KEY = 'qm_cart';
@@ -70,4 +81,13 @@ export function calcUnitPrice(basePriceTwd: number): number {
 
 export function calcTotal(basePriceTwd: number, quantity: number): number {
   return Math.round((basePriceTwd / 1000) * quantity * 100) / 100;
+}
+
+// Parse required_fields from service item
+export function parseRequiredFields(service: ServiceItem): string[] {
+  try {
+    return JSON.parse(service.required_fields || '["link","quantity"]');
+  } catch {
+    return ['link', 'quantity'];
+  }
 }

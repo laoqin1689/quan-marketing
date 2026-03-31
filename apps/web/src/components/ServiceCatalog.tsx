@@ -3,6 +3,8 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import PlatformIcon from './PlatformIcon';
 import type { ServiceItem, FilterOption } from '@/lib/api';
+import { parseRequiredFields, type CartItemExtraData } from '@/lib/cart';
+import { FIELD_DEFINITIONS, SERVICE_TYPE_LINK_LABELS, LINK_PLACEHOLDERS } from '@/lib/constants';
 
 // ==================== Constants ====================
 
@@ -41,6 +43,7 @@ interface CartItem {
   service: ServiceItem;
   quantity: number;
   link: string;
+  extraData?: CartItemExtraData;
 }
 
 interface ServiceCatalogProps {
@@ -82,6 +85,11 @@ export default function ServiceCatalog({ categories, filters }: ServiceCatalogPr
   const [expandedCard, setExpandedCard] = useState<number | null>(null);
   const [cardQuantities, setCardQuantities] = useState<Record<number, number>>({});
   const [cardLinks, setCardLinks] = useState<Record<number, string>>({});
+  // Dynamic field states per card
+  const [cardComments, setCardComments] = useState<Record<number, string>>({});
+  const [cardRatings, setCardRatings] = useState<Record<number, string>>({});
+  const [cardAnswerNumbers, setCardAnswerNumbers] = useState<Record<number, string>>({});
+  const [cardUsernames, setCardUsernames] = useState<Record<number, string>>({});
 
   // Sort platforms by count
   const sortedPlatforms = useMemo(() => {
@@ -163,19 +171,20 @@ export default function ServiceCatalog({ categories, filters }: ServiceCatalogPr
     });
   }, []);
 
-  // Add to cart
-  const addToCart = useCallback((service: ServiceItem, quantity: number, link: string) => {
-    if (!link.trim()) return;
-    if (quantity < service.min_quantity || quantity > service.max_quantity) return;
+  // Add to cart with extra data
+  const addToCart = useCallback((service: ServiceItem, quantity: number, link: string, extraData?: CartItemExtraData) => {
+    const requiredFields = parseRequiredFields(service);
+    if (requiredFields.includes('link') && !link.trim()) return;
+    if (requiredFields.includes('quantity') && (quantity < service.min_quantity || quantity > service.max_quantity)) return;
 
     setCart(prev => {
       const existing = prev.findIndex(item => item.service.id === service.id);
       if (existing >= 0) {
         const updated = [...prev];
-        updated[existing] = { service, quantity, link };
+        updated[existing] = { service, quantity, link, extraData };
         return updated;
       }
-      return [...prev, { service, quantity, link }];
+      return [...prev, { service, quantity, link, extraData }];
     });
     setExpandedCard(null);
     setShowCart(true);
@@ -204,6 +213,8 @@ export default function ServiceCatalog({ categories, filters }: ServiceCatalogPr
       items: cart.map(item => ({
         category_id: item.service.id,
         quantity: item.quantity,
+        link: item.link,
+        ...(item.extraData || {}),
       })),
     };
 
@@ -216,6 +227,7 @@ export default function ServiceCatalog({ categories, filters }: ServiceCatalogPr
         unit_price: item.service.base_price_twd / 1000,
         subtotal: Math.round((item.service.base_price_twd / 1000) * item.quantity * 100) / 100,
         link: item.link,
+        extraData: item.extraData,
       })),
       total: cartTotal,
     };
@@ -235,6 +247,29 @@ export default function ServiceCatalog({ categories, filters }: ServiceCatalogPr
   }, []);
 
   const hasActiveFilters = selectedPlatform || selectedTypes.size > 0 || selectedQualities.size > 0 || showPopularOnly || searchQuery;
+
+  // Build extra data for inline card form
+  const buildCardExtraData = (service: ServiceItem): CartItemExtraData | undefined => {
+    const data: CartItemExtraData = {};
+    const rf = parseRequiredFields(service);
+    if (rf.includes('comments') && cardComments[service.id]) data.comments = cardComments[service.id];
+    if (rf.includes('rating') && cardRatings[service.id]) data.rating = parseInt(cardRatings[service.id]);
+    if (rf.includes('answer_number') && cardAnswerNumbers[service.id]) data.answer_number = parseInt(cardAnswerNumbers[service.id]);
+    if (rf.includes('usernames') && cardUsernames[service.id]) data.usernames = cardUsernames[service.id];
+    return Object.keys(data).length > 0 ? data : undefined;
+  };
+
+  // Validate inline card form
+  const validateCard = (service: ServiceItem): boolean => {
+    const rf = parseRequiredFields(service);
+    if (rf.includes('link') && !cardLinks[service.id]?.trim()) return false;
+    if (rf.includes('comments') && !cardComments[service.id]?.trim()) return false;
+    if (rf.includes('answer_number') && !cardAnswerNumbers[service.id]) return false;
+    if (rf.includes('usernames') && !cardUsernames[service.id]?.trim()) return false;
+    const qty = cardQuantities[service.id] || service.min_quantity;
+    if (rf.includes('quantity') && (qty < service.min_quantity || qty > service.max_quantity)) return false;
+    return true;
+  };
 
   return (
     <div className="relative">
@@ -289,115 +324,100 @@ export default function ServiceCatalog({ categories, filters }: ServiceCatalogPr
             >
               <PlatformIcon platform={p.name} size="sm" />
               <span>{p.name}</span>
-              <span className={`text-xs ${selectedPlatform === p.name ? 'text-white/70' : 'text-gray-400'}`}>
-                {p.count}
-              </span>
+              <span className="text-[10px] opacity-60">({p.count})</span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* ==================== Service Type + Quality Filters ==================== */}
-      <div className="mb-4 flex flex-wrap gap-4">
-        {/* Service Types */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            {availableServiceTypes.map(t => (
-              <button
-                key={t.name}
-                onClick={() => toggleType(t.name)}
-                className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  selectedTypes.has(t.name)
-                    ? 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-300'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {SERVICE_TYPE_LABELS[t.name] || t.name}
-                <span className="ml-1 text-[10px] opacity-60">{t.count}</span>
-              </button>
-            ))}
-          </div>
+      {/* ==================== Service Type Filter ==================== */}
+      <div className="mb-4">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          {availableServiceTypes.map(st => (
+            <button
+              key={st.name}
+              onClick={() => toggleType(st.name)}
+              className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                selectedTypes.has(st.name)
+                  ? 'bg-primary-100 text-primary-700 border border-primary-300'
+                  : 'bg-gray-50 text-gray-500 border border-gray-100 hover:border-gray-300'
+              }`}
+            >
+              {SERVICE_TYPE_LABELS[st.name] || st.name} ({st.count})
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Quality + Popular + Clear */}
-      <div className="mb-6 flex flex-wrap items-center gap-2">
+      {/* ==================== Quality Filter + Controls ==================== */}
+      <div className="flex items-center gap-2 mb-6 flex-wrap">
         {sortedQualities.map(q => {
-          const info = QUALITY_LABELS[q.name] || { label: q.name, color: 'text-gray-600', bg: 'bg-gray-100' };
+          const qi = QUALITY_LABELS[q.name] || { label: q.name, color: 'text-gray-600', bg: 'bg-gray-100' };
           return (
             <button
               key={q.name}
               onClick={() => toggleQuality(q.name)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 selectedQualities.has(q.name)
-                  ? `${info.bg} ${info.color} ring-1 ring-current`
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  ? `${qi.bg} ${qi.color} ring-1 ring-current`
+                  : 'bg-gray-50 text-gray-500 border border-gray-100 hover:border-gray-300'
               }`}
             >
-              {info.label}
-              <span className="ml-1 text-[10px] opacity-60">{q.count}</span>
+              {qi.label}
             </button>
           );
         })}
-
         <button
           onClick={() => setShowPopularOnly(!showPopularOnly)}
           className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
             showPopularOnly
-              ? 'bg-rose-100 text-rose-700 ring-1 ring-rose-300'
-              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-300'
+              : 'bg-gray-50 text-gray-500 border border-gray-100 hover:border-gray-300'
           }`}
         >
-          ★ 熱門推薦
+          熱門推薦
         </button>
-
         {hasActiveFilters && (
-          <button
-            onClick={clearFilters}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all"
-          >
+          <button onClick={clearFilters} className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-gray-600">
             清除篩選
           </button>
         )}
-
-        <span className="ml-auto text-xs text-gray-400">
-          顯示 {filteredCategories.length} / {categories.length} 項服務
-        </span>
+        <span className="text-xs text-gray-400 ml-auto">{filteredCategories.length} 項服務</span>
       </div>
 
       {/* ==================== Service Cards Grid ==================== */}
       {filteredCategories.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="text-4xl mb-4">🔍</div>
-          <p className="text-gray-500 mb-2">沒有找到符合條件的服務</p>
-          <button onClick={clearFilters} className="text-primary-600 text-sm font-medium hover:underline">
-            清除所有篩選
-          </button>
+        <div className="text-center py-16 text-gray-400">
+          <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <p>找不到符合條件的服務</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredCategories.map(service => {
             const qualityInfo = QUALITY_LABELS[service.quality] || { label: service.quality, color: 'text-gray-600', bg: 'bg-gray-100' };
             const isExpanded = expandedCard === service.id;
+            const inCart = cart.some(item => item.service.id === service.id);
             const qty = cardQuantities[service.id] || service.min_quantity;
             const link = cardLinks[service.id] || '';
-            const inCart = cart.some(item => item.service.id === service.id);
+            const requiredFields = parseRequiredFields(service);
+            const linkLabel = SERVICE_TYPE_LINK_LABELS[service.service_type] || '連結 / 帳號';
+            const linkPlaceholder = LINK_PLACEHOLDERS[service.platform] || '貼上社群連結或帳號...';
 
             return (
               <div
                 key={service.id}
-                className={`bg-white rounded-2xl border transition-all duration-200 overflow-hidden ${
-                  isExpanded
-                    ? 'border-primary-300 shadow-lg ring-1 ring-primary-200'
-                    : inCart
-                    ? 'border-green-300 shadow-sm'
-                    : 'border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200'
+                className={`bg-white rounded-2xl border transition-all ${
+                  isExpanded ? 'border-primary-300 shadow-lg ring-1 ring-primary-100' :
+                  inCart ? 'border-green-200 shadow-sm' : 'border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200'
                 }`}
               >
-                {/* Card Header */}
+                {/* Card Content */}
                 <div className="p-4">
-                  <div className="flex items-start gap-3 mb-3">
-                    <PlatformIcon platform={service.platform} size="md" />
+                  {/* Platform + Service Type */}
+                  <div className="flex items-start gap-2.5 mb-2">
+                    <PlatformIcon platform={service.platform} size="sm" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                         <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold ${qualityInfo.bg} ${qualityInfo.color}`}>
@@ -415,7 +435,7 @@ export default function ServiceCatalog({ categories, filters }: ServiceCatalogPr
                         )}
                         {service.is_popular === 1 && (
                           <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold bg-rose-50 text-rose-600">
-                            ★ 熱門
+                            熱門
                           </span>
                         )}
                       </div>
@@ -469,6 +489,10 @@ export default function ServiceCatalog({ categories, filters }: ServiceCatalogPr
                         if (!cardQuantities[service.id]) {
                           setCardQuantities(prev => ({ ...prev, [service.id]: service.min_quantity }));
                         }
+                        // Set default rating for Reviews
+                        if (requiredFields.includes('rating') && !cardRatings[service.id]) {
+                          setCardRatings(prev => ({ ...prev, [service.id]: '5' }));
+                        }
                       }}
                       className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all ${
                         inCart
@@ -476,46 +500,121 @@ export default function ServiceCatalog({ categories, filters }: ServiceCatalogPr
                           : 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm'
                       }`}
                     >
-                      {inCart ? '✓ 已加入購物車' : '立即訂購'}
+                      {inCart ? '已加入購物車' : '立即訂購'}
                     </button>
                   ) : null}
                 </div>
 
-                {/* Expanded: Inline Order Form */}
+                {/* Expanded: Inline Order Form with Dynamic Fields */}
                 {isExpanded && (
                   <div className="px-4 pb-4 border-t border-gray-100 pt-3 bg-gray-50/50">
                     <div className="space-y-3">
-                      {/* Link input */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                          連結 / 帳號
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="貼上社群連結或帳號..."
-                          value={link}
-                          onChange={(e) => setCardLinks(prev => ({ ...prev, [service.id]: e.target.value }))}
-                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 outline-none"
-                        />
-                      </div>
+                      {/* Link input (if required) */}
+                      {requiredFields.includes('link') && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            {linkLabel} <span className="text-red-400">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder={linkPlaceholder}
+                            value={link}
+                            onChange={(e) => setCardLinks(prev => ({ ...prev, [service.id]: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 outline-none"
+                          />
+                        </div>
+                      )}
 
-                      {/* Quantity input */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                          數量 ({service.min_quantity.toLocaleString()} - {service.max_quantity.toLocaleString()})
-                        </label>
-                        <input
-                          type="number"
-                          min={service.min_quantity}
-                          max={service.max_quantity}
-                          value={qty}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value) || service.min_quantity;
-                            setCardQuantities(prev => ({ ...prev, [service.id]: val }));
-                          }}
-                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 outline-none"
-                        />
-                      </div>
+                      {/* Quantity input (if required) */}
+                      {requiredFields.includes('quantity') && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            數量 ({service.min_quantity.toLocaleString()} - {service.max_quantity.toLocaleString()})
+                          </label>
+                          <input
+                            type="number"
+                            min={service.min_quantity}
+                            max={service.max_quantity}
+                            value={qty}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value) || service.min_quantity;
+                              setCardQuantities(prev => ({ ...prev, [service.id]: val }));
+                            }}
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 outline-none"
+                          />
+                        </div>
+                      )}
+
+                      {/* Comments textarea (for Comments/Reviews/Posts) */}
+                      {requiredFields.includes('comments') && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            {FIELD_DEFINITIONS.comments.label} <span className="text-red-400">*</span>
+                          </label>
+                          <textarea
+                            placeholder={FIELD_DEFINITIONS.comments.placeholder}
+                            value={cardComments[service.id] || ''}
+                            onChange={(e) => setCardComments(prev => ({ ...prev, [service.id]: e.target.value }))}
+                            rows={3}
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 outline-none resize-none"
+                          />
+                          <p className="text-[10px] text-gray-400 mt-0.5">{FIELD_DEFINITIONS.comments.hint}</p>
+                        </div>
+                      )}
+
+                      {/* Rating select (for Reviews) */}
+                      {requiredFields.includes('rating') && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            {FIELD_DEFINITIONS.rating.label}
+                          </label>
+                          <select
+                            value={cardRatings[service.id] || '5'}
+                            onChange={(e) => setCardRatings(prev => ({ ...prev, [service.id]: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 outline-none bg-white"
+                          >
+                            {FIELD_DEFINITIONS.rating.options?.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Answer number select (for Votes) */}
+                      {requiredFields.includes('answer_number') && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            {FIELD_DEFINITIONS.answer_number.label} <span className="text-red-400">*</span>
+                          </label>
+                          <select
+                            value={cardAnswerNumbers[service.id] || ''}
+                            onChange={(e) => setCardAnswerNumbers(prev => ({ ...prev, [service.id]: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 outline-none bg-white"
+                          >
+                            <option value="">選擇投票選項</option>
+                            {FIELD_DEFINITIONS.answer_number.options?.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Usernames textarea (for Mentions) */}
+                      {requiredFields.includes('usernames') && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            {FIELD_DEFINITIONS.usernames.label} <span className="text-red-400">*</span>
+                          </label>
+                          <textarea
+                            placeholder={FIELD_DEFINITIONS.usernames.placeholder}
+                            value={cardUsernames[service.id] || ''}
+                            onChange={(e) => setCardUsernames(prev => ({ ...prev, [service.id]: e.target.value }))}
+                            rows={3}
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 outline-none resize-none"
+                          />
+                          <p className="text-[10px] text-gray-400 mt-0.5">{FIELD_DEFINITIONS.usernames.hint}</p>
+                        </div>
+                      )}
 
                       {/* Price preview */}
                       <div className="flex items-center justify-between text-sm">
@@ -534,8 +633,8 @@ export default function ServiceCatalog({ categories, filters }: ServiceCatalogPr
                           取消
                         </button>
                         <button
-                          onClick={() => addToCart(service, qty, link)}
-                          disabled={!link.trim() || qty < service.min_quantity || qty > service.max_quantity}
+                          onClick={() => addToCart(service, qty, link, buildCardExtraData(service))}
+                          disabled={!validateCard(service)}
                           className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                         >
                           加入購物車
@@ -588,7 +687,17 @@ export default function ServiceCatalog({ categories, filters }: ServiceCatalogPr
                     <PlatformIcon platform={item.service.platform} size="sm" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{item.service.display_name}</p>
-                      <p className="text-xs text-gray-500 truncate mt-0.5">{item.link}</p>
+                      {item.link && <p className="text-xs text-gray-500 truncate mt-0.5">{item.link}</p>}
+                      {item.extraData?.comments && (
+                        <p className="text-xs text-gray-400 truncate mt-0.5">
+                          留言: {item.extraData.comments.split('\n')[0]}...
+                        </p>
+                      )}
+                      {item.extraData?.rating && (
+                        <p className="text-xs text-amber-500 mt-0.5">
+                          {'★'.repeat(item.extraData.rating)}{'☆'.repeat(5 - item.extraData.rating)}
+                        </p>
+                      )}
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-xs text-gray-500">
                           {item.quantity.toLocaleString()} 個 x {formatPricePer1k(item.service.base_price_twd)}/1K

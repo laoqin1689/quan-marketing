@@ -43,9 +43,9 @@ webhookRoute.post('/payment', async (c) => {
     // Get user email
     const user = await db.prepare('SELECT email FROM users WHERE id = ?').bind(order.user_id).first<{ email: string }>();
 
-    // Get order items
+    // Get order items (including extra_data for dynamic form fields)
     const items = await db.prepare(
-      `SELECT oi.id as item_id, oi.category_id, oi.service_name, oi.quantity,
+      `SELECT oi.id as item_id, oi.category_id, oi.service_name, oi.quantity, oi.extra_data,
               sr.route_id
        FROM order_items oi
        LEFT JOIN supplier_routes sr ON sr.category_id = oi.category_id AND sr.priority = 1
@@ -67,6 +67,7 @@ webhookRoute.post('/payment', async (c) => {
               service_name: item.service_name,
               quantity: item.quantity,
               route_id: item.route_id,
+              extra_data: item.extra_data ? JSON.parse(item.extra_data) : null,
             })),
             user_email: user?.email,
             social_account: order.social_account,

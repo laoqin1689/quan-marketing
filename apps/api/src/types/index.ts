@@ -45,6 +45,7 @@ export interface Category {
   is_popular: number;
   is_active: number;
   sort_order: number;
+  required_fields: string; // JSON array e.g. '["link","quantity"]'
   created_at: string;
 }
 
@@ -126,6 +127,7 @@ export interface OrderItem {
   start_count: number | null;
   current_count: number | null;
   remains: number | null;
+  extra_data: string | null; // JSON: dynamic form data (comments, rating, answer_number, etc.)
 }
 
 export interface Coupon {
@@ -164,6 +166,13 @@ export interface CreateOrderRequest {
   items: {
     category_id: number;
     quantity: number;
+    link?: string;       // per-item link (overrides social_account)
+    comments?: string;   // newline-separated comments
+    rating?: number;     // 1-5 star rating for reviews
+    answer_number?: number; // poll option number
+    usernames?: string;  // newline-separated usernames for mentions
+    keywords?: string;   // newline-separated keywords for SEO
+    country?: string;    // country code for targeted services
   }[];
   coupon_code?: string;
   ref_code?: string;

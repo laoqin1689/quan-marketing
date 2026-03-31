@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import type { ServiceItem } from '@/lib/api';
-import { calcTotal, formatPrice, addToCartStorage, getCart } from '@/lib/cart';
-import { SERVICE_TYPE_LABELS, QUALITY_LABELS, LINK_PLACEHOLDERS } from '@/lib/constants';
+import { calcTotal, formatPrice, addToCartStorage, parseRequiredFields, type CartItemExtraData } from '@/lib/cart';
+import { SERVICE_TYPE_LABELS, QUALITY_LABELS, LINK_PLACEHOLDERS, FIELD_DEFINITIONS, SERVICE_TYPE_LINK_LABELS } from '@/lib/constants';
 import PlatformIcon from './PlatformIcon';
 
 interface OrderModalProps {
@@ -15,12 +15,20 @@ interface OrderModalProps {
 
 export default function OrderModal({ service, quantity, onClose, onCartUpdate }: OrderModalProps) {
   const [link, setLink] = useState('');
+  const [comments, setComments] = useState('');
+  const [rating, setRating] = useState('5');
+  const [answerNumber, setAnswerNumber] = useState('');
+  const [usernames, setUsernames] = useState('');
+  const [keywords, setKeywords] = useState('');
+  const [country, setCountry] = useState('');
   const [error, setError] = useState('');
   const [added, setAdded] = useState(false);
 
   const qualityInfo = QUALITY_LABELS[service.quality] || { label: service.quality, color: 'text-gray-600', bg: 'bg-gray-100' };
   const total = calcTotal(service.base_price_twd, quantity);
   const placeholder = LINK_PLACEHOLDERS[service.platform] || '請輸入您的社群帳號連結';
+  const requiredFields = parseRequiredFields(service);
+  const linkLabel = SERVICE_TYPE_LINK_LABELS[service.service_type] || '連結 / 帳號';
 
   // Close on escape
   useEffect(() => {
@@ -37,25 +45,136 @@ export default function OrderModal({ service, quantity, onClose, onCartUpdate }:
     return () => { document.body.style.overflow = ''; };
   }, []);
 
-  const handleAddToCart = () => {
-    if (!link.trim()) {
-      setError('請輸入您的社群帳號或連結');
-      return;
+  const validate = (): boolean => {
+    if (requiredFields.includes('link') && !link.trim()) {
+      setError(`請輸入${linkLabel}`);
+      return false;
     }
-    addToCartStorage({ service, quantity, link: link.trim() });
+    if (requiredFields.includes('comments') && !comments.trim()) {
+      setError('請輸入留言/評論內容（每行一條）');
+      return false;
+    }
+    if (requiredFields.includes('answer_number') && !answerNumber) {
+      setError('請選擇投票選項');
+      return false;
+    }
+    if (requiredFields.includes('usernames') && !usernames.trim()) {
+      setError('請輸入用戶名列表（每行一個）');
+      return false;
+    }
+    if (requiredFields.includes('keywords') && !keywords.trim()) {
+      setError('請輸入關鍵字（每行一個）');
+      return false;
+    }
+    return true;
+  };
+
+  const buildExtraData = (): CartItemExtraData | undefined => {
+    const data: CartItemExtraData = {};
+    if (comments.trim()) data.comments = comments.trim();
+    if (rating && requiredFields.includes('rating')) data.rating = parseInt(rating);
+    if (answerNumber) data.answer_number = parseInt(answerNumber);
+    if (usernames.trim()) data.usernames = usernames.trim();
+    if (keywords.trim()) data.keywords = keywords.trim();
+    if (country) data.country = country;
+    return Object.keys(data).length > 0 ? data : undefined;
+  };
+
+  const handleAddToCart = () => {
+    if (!validate()) return;
+    addToCartStorage({
+      service,
+      quantity,
+      link: link.trim(),
+      extraData: buildExtraData(),
+    });
     onCartUpdate();
     setAdded(true);
     setTimeout(() => onClose(), 800);
   };
 
   const handleDirectCheckout = () => {
-    if (!link.trim()) {
-      setError('請輸入您的社群帳號或連結');
-      return;
-    }
-    addToCartStorage({ service, quantity, link: link.trim() });
+    if (!validate()) return;
+    addToCartStorage({
+      service,
+      quantity,
+      link: link.trim(),
+      extraData: buildExtraData(),
+    });
     onCartUpdate();
     window.location.href = '/checkout/';
+  };
+
+  // Render a dynamic field based on field name
+  const renderField = (fieldName: string) => {
+    // Skip link and quantity (handled separately)
+    if (fieldName === 'link' || fieldName === 'quantity') return null;
+
+    const fieldDef = FIELD_DEFINITIONS[fieldName];
+    if (!fieldDef) return null;
+
+    const fieldKey = `field-${fieldName}`;
+
+    if (fieldDef.type === 'textarea') {
+      const value = fieldName === 'comments' ? comments
+        : fieldName === 'usernames' ? usernames
+        : fieldName === 'keywords' ? keywords : '';
+      const setter = fieldName === 'comments' ? setComments
+        : fieldName === 'usernames' ? setUsernames
+        : fieldName === 'keywords' ? setKeywords : () => {};
+
+      return (
+        <div key={fieldKey} className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            {fieldDef.label} {fieldDef.required && <span className="text-red-400">*</span>}
+          </label>
+          <textarea
+            value={value}
+            onChange={(e) => { setter(e.target.value); setError(''); }}
+            placeholder={fieldDef.placeholder}
+            rows={4}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm outline-none transition-all focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 resize-none"
+          />
+          {fieldDef.hint && (
+            <p className="text-xs text-gray-400 mt-1">{fieldDef.hint}</p>
+          )}
+        </div>
+      );
+    }
+
+    if (fieldDef.type === 'select' && fieldDef.options) {
+      const value = fieldName === 'rating' ? rating
+        : fieldName === 'answer_number' ? answerNumber
+        : fieldName === 'country' ? country : '';
+      const setter = fieldName === 'rating' ? setRating
+        : fieldName === 'answer_number' ? setAnswerNumber
+        : fieldName === 'country' ? setCountry : () => {};
+
+      return (
+        <div key={fieldKey} className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            {fieldDef.label} {fieldDef.required && <span className="text-red-400">*</span>}
+          </label>
+          <select
+            value={value}
+            onChange={(e) => { setter(e.target.value); setError(''); }}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm outline-none transition-all focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 bg-white"
+          >
+            {!fieldDef.defaultValue && (
+              <option value="">{fieldDef.placeholder}</option>
+            )}
+            {fieldDef.options.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          {fieldDef.hint && (
+            <p className="text-xs text-gray-400 mt-1">{fieldDef.hint}</p>
+          )}
+        </div>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -64,9 +183,9 @@ export default function OrderModal({ service, quantity, onClose, onCartUpdate }:
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden animate-in flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <h3 className="text-lg font-bold text-gray-900">確認訂單</h3>
           <button onClick={onClose} className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -75,8 +194,9 @@ export default function OrderModal({ service, quantity, onClose, onCartUpdate }:
           </button>
         </div>
 
-        {/* Order Summary */}
-        <div className="px-6 py-4">
+        {/* Scrollable Content */}
+        <div className="overflow-y-auto flex-1 px-6 py-4">
+          {/* Order Summary */}
           <div className="flex items-start gap-3 mb-4">
             <PlatformIcon platform={service.platform} size="lg" />
             <div className="flex-1">
@@ -98,26 +218,38 @@ export default function OrderModal({ service, quantity, onClose, onCartUpdate }:
             </div>
           </div>
 
-          {/* Link Input */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              請輸入您的 {service.platform} 帳號或連結
-            </label>
-            <input
-              type="text"
-              value={link}
-              onChange={(e) => { setLink(e.target.value); setError(''); }}
-              placeholder={placeholder}
-              className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all ${
-                error ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' : 'border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20'
-              }`}
-              autoFocus
-            />
-            {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
-            <p className="text-xs text-gray-400 mt-1.5">
-              請確認帳號為公開狀態，以便服務正常交付
-            </p>
-          </div>
+          {/* Dynamic Form Fields */}
+
+          {/* Link Input (if required) */}
+          {requiredFields.includes('link') && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                {linkLabel} <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={link}
+                onChange={(e) => { setLink(e.target.value); setError(''); }}
+                placeholder={placeholder}
+                className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all ${
+                  error && !link.trim() ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' : 'border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20'
+                }`}
+                autoFocus
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                請確認帳號為公開狀態，以便服務正常交付
+              </p>
+            </div>
+          )}
+
+          {/* Other dynamic fields (comments, rating, answer_number, usernames, keywords, country) */}
+          {requiredFields
+            .filter(f => f !== 'link' && f !== 'quantity')
+            .map(fieldName => renderField(fieldName))
+          }
+
+          {/* Error message */}
+          {error && <p className="text-xs text-red-500 mb-3 px-1">{error}</p>}
 
           {/* Warranty Info */}
           {service.has_warranty === 1 && (
@@ -130,14 +262,14 @@ export default function OrderModal({ service, quantity, onClose, onCartUpdate }:
           )}
         </div>
 
-        {/* Actions */}
-        <div className="px-6 pb-6 space-y-2">
+        {/* Actions (fixed at bottom) */}
+        <div className="px-6 pb-6 pt-3 border-t border-gray-50 shrink-0">
           {added ? (
             <div className="w-full py-3 rounded-xl bg-green-500 text-white font-semibold text-center">
               已加入購物車
             </div>
           ) : (
-            <>
+            <div className="space-y-2">
               <button
                 onClick={handleDirectCheckout}
                 className="w-full py-3 rounded-xl bg-primary-600 text-white font-semibold hover:bg-primary-700 transition-all shadow-lg text-base"
@@ -150,7 +282,7 @@ export default function OrderModal({ service, quantity, onClose, onCartUpdate }:
               >
                 加入購物車，繼續選購
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>

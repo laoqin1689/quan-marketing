@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import PlatformIcon from '@/components/PlatformIcon';
-import { getCart, removeFromCartStorage, clearCartStorage, getCartTotal, formatPrice, calcTotal, type CartItem } from '@/lib/cart';
+import { getCart, removeFromCartStorage, clearCartStorage, getCartTotal, formatPrice, calcTotal, type CartItem, type CartItemExtraData } from '@/lib/cart';
 import { SERVICE_TYPE_LABELS, QUALITY_LABELS } from '@/lib/constants';
 import { getAnonymousId, getUTMParams, getRefCode } from '@/lib/tracking';
 
@@ -66,6 +66,13 @@ export default function CheckoutPage() {
       items: cart.map(item => ({
         category_id: item.service.id,
         quantity: item.quantity,
+        link: item.link || undefined,
+        comments: item.extraData?.comments || undefined,
+        rating: item.extraData?.rating || undefined,
+        answer_number: item.extraData?.answer_number || undefined,
+        usernames: item.extraData?.usernames || undefined,
+        keywords: item.extraData?.keywords || undefined,
+        country: item.extraData?.country || undefined,
       })),
       coupon_code: couponCode || undefined,
       ref_code: refCode || undefined,
@@ -200,7 +207,17 @@ export default function CheckoutPage() {
                             </span>
                             <span className="text-xs text-gray-400">{item.quantity.toLocaleString()} 個</span>
                           </div>
-                          <p className="text-xs text-gray-400 mt-0.5 truncate">{item.link}</p>
+                          {item.link && <p className="text-xs text-gray-400 mt-0.5 truncate">{item.link}</p>}
+                          {item.extraData?.comments && (
+                            <p className="text-xs text-gray-400 mt-0.5 truncate">
+                              留言: {item.extraData.comments.split('\n')[0]}{item.extraData.comments.includes('\n') ? '...' : ''}
+                            </p>
+                          )}
+                          {item.extraData?.rating && (
+                            <p className="text-xs text-amber-500 mt-0.5">
+                              {'★'.repeat(item.extraData.rating)}{'☆'.repeat(5 - item.extraData.rating)}
+                            </p>
+                          )}
                         </div>
                         <div className="text-right shrink-0">
                           <p className="font-bold text-primary-600">{formatPrice(itemTotal)}</p>

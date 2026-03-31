@@ -34,6 +34,7 @@ export interface ServiceItem {
   has_warranty: number;
   is_popular: number;
   sort_order: number;
+  required_fields: string; // JSON array e.g. '["link","quantity"]'
 }
 
 export interface FilterOption {

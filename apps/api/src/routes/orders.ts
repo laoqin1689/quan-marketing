@@ -49,22 +49,61 @@ ordersRoute.post('/', async (c) => {
 
     // 2. Calculate total amount
     let totalAmount = 0;
-    const itemDetails: { category_id: number; quantity: number; unit_price: number; subtotal: number; service_name: string }[] = [];
+    const itemDetails: { category_id: number; quantity: number; unit_price: number; subtotal: number; service_name: string; extra_data: string | null }[] = [];
 
     for (const item of body.items) {
       const category = await db.prepare(
-        'SELECT id, display_name, base_price_twd, min_quantity, max_quantity FROM categories WHERE id = ? AND is_active = 1'
+        'SELECT id, display_name, base_price_twd, min_quantity, max_quantity, required_fields, service_type FROM categories WHERE id = ? AND is_active = 1'
       ).bind(item.category_id).first<any>();
 
       if (!category) {
         return c.json({ error: `服務 ID ${item.category_id} 不存在` }, 400);
       }
 
-      if (item.quantity < category.min_quantity || item.quantity > category.max_quantity) {
-        return c.json({
-          error: `${category.display_name} 的數量需在 ${category.min_quantity} ~ ${category.max_quantity} 之間`
-        }, 400);
+      // Parse required_fields for validation
+      const requiredFields: string[] = (() => {
+        try { return JSON.parse(category.required_fields || '["link","quantity"]'); }
+        catch { return ['link', 'quantity']; }
+      })();
+
+      // Validate quantity if required
+      if (requiredFields.includes('quantity')) {
+        if (item.quantity < category.min_quantity || item.quantity > category.max_quantity) {
+          return c.json({
+            error: `${category.display_name} 的數量需在 ${category.min_quantity} ~ ${category.max_quantity} 之間`
+          }, 400);
+        }
       }
+
+      // Validate link if required
+      if (requiredFields.includes('link') && !item.link?.trim() && !body.social_account?.trim()) {
+        return c.json({ error: `${category.display_name} 需要填寫連結` }, 400);
+      }
+
+      // Validate comments if required
+      if (requiredFields.includes('comments') && !item.comments?.trim()) {
+        return c.json({ error: `${category.display_name} 需要填寫留言/評論內容` }, 400);
+      }
+
+      // Validate answer_number if required
+      if (requiredFields.includes('answer_number') && !item.answer_number) {
+        return c.json({ error: `${category.display_name} 需要選擇投票選項` }, 400);
+      }
+
+      // Validate usernames if required
+      if (requiredFields.includes('usernames') && !item.usernames?.trim()) {
+        return c.json({ error: `${category.display_name} 需要填寫用戶名列表` }, 400);
+      }
+
+      // Build extra_data JSON for dynamic fields
+      const extraData: Record<string, any> = {};
+      if (item.link) extraData.link = item.link.trim();
+      if (item.comments) extraData.comments = item.comments.trim();
+      if (item.rating) extraData.rating = item.rating;
+      if (item.answer_number) extraData.answer_number = item.answer_number;
+      if (item.usernames) extraData.usernames = item.usernames.trim();
+      if (item.keywords) extraData.keywords = item.keywords.trim();
+      if (item.country) extraData.country = item.country.trim();
 
       const unitPrice = category.base_price_twd / 1000; // price per unit
       const subtotal = Math.round(unitPrice * item.quantity * 100) / 100;
@@ -76,6 +115,7 @@ ordersRoute.post('/', async (c) => {
         unit_price: unitPrice,
         subtotal,
         service_name: category.display_name,
+        extra_data: Object.keys(extraData).length > 0 ? JSON.stringify(extraData) : null,
       });
     }
 
@@ -123,12 +163,12 @@ ordersRoute.post('/', async (c) => {
 
     const order = await db.prepare('SELECT id FROM orders WHERE order_number = ?').bind(orderNumber).first<{ id: number }>();
 
-    // 5. Create order items
+    // 5. Create order items (with extra_data for dynamic form fields)
     for (const item of itemDetails) {
       await db.prepare(
-        `INSERT INTO order_items (order_id, category_id, service_name, quantity, unit_price, subtotal)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      ).bind(order!.id, item.category_id, item.service_name, item.quantity, item.unit_price, item.subtotal);
+        `INSERT INTO order_items (order_id, category_id, service_name, quantity, unit_price, subtotal, extra_data)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).bind(order!.id, item.category_id, item.service_name, item.quantity, item.unit_price, item.subtotal, item.extra_data);
     }
 
     // 6. Record touchpoint
@@ -197,7 +237,7 @@ ordersRoute.get('/:orderNumber', async (c) => {
   }
 
   const items = await db.prepare(
-    `SELECT service_name, quantity, unit_price, subtotal, supplier_status, start_count, current_count, remains
+    `SELECT service_name, quantity, unit_price, subtotal, supplier_status, start_count, current_count, remains, extra_data
      FROM order_items WHERE order_id = (SELECT id FROM orders WHERE order_number = ?)`
   ).bind(orderNumber).all();
 
@@ -227,31 +267,32 @@ ordersRoute.post('/:orderNumber/simulate-payment', async (c) => {
   // Get user email
   const user = await db.prepare('SELECT email FROM users WHERE id = ?').bind(order.user_id).first<{ email: string }>();
 
-  // Get order items for N8N
-  const items = await db.prepare(
-    `SELECT oi.id as item_id, oi.category_id, oi.service_name, oi.quantity,
-            sr.route_id
-     FROM order_items oi
-     LEFT JOIN supplier_routes sr ON sr.category_id = oi.category_id AND sr.priority = 1
-     WHERE oi.order_id = ?`
-  ).bind(order.id).all();
+    // Get order items for N8N
+    const items = await db.prepare(
+      `SELECT oi.id as item_id, oi.category_id, oi.service_name, oi.quantity, oi.extra_data,
+              sr.route_id
+       FROM order_items oi
+       LEFT JOIN supplier_routes sr ON sr.category_id = oi.category_id AND sr.priority = 1
+       WHERE oi.order_id = ?`
+    ).bind(order.id).all();
 
-  // Send to N8N via webhook for supplier order processing
-  try {
-    const n8nPayload = {
-      order_id: order.id,
-      order_number: orderNumber,
-      items: (items.results || []).map((item: any) => ({
-        item_id: item.item_id,
-        category_id: item.category_id,
-        service_name: item.service_name,
-        quantity: item.quantity,
-        route_id: item.route_id,
-      })),
-      user_email: user?.email,
-      social_account: order.social_account,
-      social_platform: order.social_platform,
-    };
+    // Send to N8N via webhook for supplier order processing
+    try {
+      const n8nPayload = {
+        order_id: order.id,
+        order_number: orderNumber,
+        items: (items.results || []).map((item: any) => ({
+          item_id: item.item_id,
+          category_id: item.category_id,
+          service_name: item.service_name,
+          quantity: item.quantity,
+          route_id: item.route_id,
+          extra_data: item.extra_data ? JSON.parse(item.extra_data) : null,
+        })),
+        user_email: user?.email,
+        social_account: order.social_account,
+        social_platform: order.social_platform,
+      };
 
     // Trigger N8N supplier order workflow
     if (c.env.N8N_WEBHOOK_BASE_URL) {

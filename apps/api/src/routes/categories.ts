@@ -16,7 +16,7 @@ categoriesRoute.get('/all', async (c) => {
   const result = await db.prepare(
     `SELECT id, platform, service_type, quality, region, display_name, description,
             base_price_twd, min_quantity, max_quantity, delivery_estimate,
-            has_warranty, is_popular, sort_order
+            has_warranty, is_popular, sort_order, required_fields
      FROM categories
      WHERE is_active = 1
      ORDER BY sort_order, platform, service_type`
@@ -77,7 +77,7 @@ categoriesRoute.get('/search', async (c) => {
   const result = await db.prepare(
     `SELECT id, platform, service_type, quality, region, display_name, description,
             base_price_twd, min_quantity, max_quantity, delivery_estimate,
-            has_warranty, is_popular
+            has_warranty, is_popular, required_fields
      FROM categories
      WHERE is_active = 1 AND (display_name LIKE ? OR platform LIKE ? OR service_type LIKE ? OR description LIKE ?)
      ORDER BY is_popular DESC, sort_order LIMIT 50`
@@ -117,7 +117,7 @@ categoriesRoute.get('/:platform/:serviceType', async (c) => {
   const result = await db.prepare(
     `SELECT id, platform, service_type, quality, region, display_name, description,
             base_price_twd, min_quantity, max_quantity, delivery_estimate,
-            has_warranty, is_popular
+            has_warranty, is_popular, required_fields
      FROM categories
      WHERE platform = ? AND service_type = ? AND is_active = 1
      ORDER BY sort_order, quality`
